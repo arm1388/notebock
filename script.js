@@ -1,40 +1,45 @@
 /* =========================================================
-   FIREBASE IMPORTS
+   SHARED DIARY — PREMIUM SCRIPT
+   Firebase + Firestore + Realtime Database + WebRTC
 ========================================================= */
 
-import {
-    initializeApp
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { initializeApp } from
+    "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 
 import {
     getAuth,
     signInAnonymously,
-    onAuthStateChanged,
-    signOut
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+    onAuthStateChanged
+} from
+    "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
 import {
     getFirestore,
     collection,
     doc,
-    getDoc,
-    setDoc,
     addDoc,
+    setDoc,
+    getDoc,
+    getDocs,
     updateDoc,
     deleteDoc,
-    onSnapshot,
     query,
     orderBy,
-    serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+    onSnapshot,
+    serverTimestamp,
+    limit
+} from
+    "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 import {
     getDatabase,
     ref,
     set,
     onValue,
-    onDisconnect
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+    onDisconnect,
+    serverTimestamp as rtdbTimestamp
+} from
+    "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
 
 /* =========================================================
@@ -42,253 +47,284 @@ import {
 ========================================================= */
 
 const firebaseConfig = {
-
-    apiKey:
-        "AIzaSyBvrnbdz69356LOv3LwY-dFlIVZG8zdQ_4",
-
-    authDomain:
-        "notebock-d4ec7.firebaseapp.com",
-
-    projectId:
-        "notebock-d4ec7",
-
-    storageBucket:
-        "notebock-d4ec7.firebasestorage.app",
-
-    messagingSenderId:
-        "931492123706",
-
-    appId:
-        "1:931492123706:web:8ea75df636cc7118de9103",
-
-    measurementId:
-        "G-7VWTN1D47C",
-
+    apiKey: "AIzaSyBvrnbdz69356LOv3lWY-dFlIVZG8zdQ_4",
+    authDomain: "notebock-d4ec7.firebaseapp.com",
+    projectId: "notebock-d4ec7",
+    storageBucket: "notebock-d4ec7.firebasestorage.app",
+    messagingSenderId: "931492123706",
+    appId: "1:931492123706:web:8ea75df636cc7118de9103",
+    measurementId: "G-7VWTN1D47C",
     databaseURL:
         "https://notebock-d4ec7-default-rtdb.firebaseio.com/"
-
 };
 
 
 /* =========================================================
-   INITIALIZE FIREBASE
+   FIREBASE INIT
 ========================================================= */
 
-const firebaseApp =
-    initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
-const auth =
-    getAuth(firebaseApp);
-
-const db =
-    getFirestore(firebaseApp);
-
-const realtimeDB =
-    getDatabase(firebaseApp);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const rtdb = getDatabase(app);
 
 
 /* =========================================================
-   FIXED DIARY CODE
+   APP CONFIG
 ========================================================= */
 
-/*
-   مهم:
-
-   کد داخل input از قبل نوشته نمی‌شود.
-
-   کاربر باید خودش بنویسد:
-
-   asna&amir8890
-
-*/
-
-const CORRECT_DIARY_CODE =
-    "asna&amir8890";
-
-
-/* =========================================================
-   GLOBAL VARIABLES
-========================================================= */
+const FIXED_DIARY_CODE = "LOVE2026";
 
 let currentUser = null;
+let diaryId = null;
+let currentName = "";
 
-let currentUserName = "";
-
-let diaryCode = "";
+let partnerUid = null;
+let partnerName = "";
 
 let unsubscribeMessages = null;
-
+let unsubscribeDiary = null;
 let unsubscribeMembers = null;
+let unsubscribeCalls = null;
+let unsubscribeIncomingCandidates = null;
+let unsubscribeOutgoingCandidates = null;
 
-let unsubscribeMyPresence = null;
-
-let unsubscribeOtherPresence = null;
-
-let messages = [];
-
-let members = [];
-
-let otherMember = null;
-
-let selectedMessage = null;
-
-let callTimerInterval = null;
-
-let callSeconds = 0;
+let currentMessages = [];
+let currentDiaryEntries = [];
 
 let localStream = null;
+let remoteStream = null;
+let peerConnection = null;
+
+let currentCallId = null;
+let currentCallType = null;
+let currentCallRole = null;
+
+let callTimerInterval = null;
+let callStartedAt = null;
+
+let batteryManager = null;
 
 
 /* =========================================================
-   DOM
+   WEBRTC CONFIG
 ========================================================= */
 
-const loginScreen =
-    document.getElementById("login");
-
-const appScreen =
-    document.getElementById("app");
-
-const enterButton =
-    document.getElementById("enter");
-
-const diaryCodeInput =
-    document.getElementById("diaryCode");
-
-const userNameInput =
-    document.getElementById("userName");
-
-const loginError =
-    document.getElementById("loginError");
-
-const currentUserNameElement =
-    document.getElementById("currentUserName");
-
-const chatElement =
-    document.getElementById("chat");
-
-const messageInput =
-    document.getElementById("msg");
-
-const sendButton =
-    document.getElementById("send");
-
-const toastElement =
-    document.getElementById("toast");
-
-const messageCountElement =
-    document.getElementById("messageCount");
-
-const favoriteCountElement =
-    document.getElementById("favoriteCount");
-
-const daysCountElement =
-    document.getElementById("daysCount");
-
-const myBatteryElement =
-    document.getElementById("myBattery");
-
-const myBatteryBarElement =
-    document.getElementById("myBatteryBar");
-
-const myBatteryStatusElement =
-    document.getElementById("myBatteryStatus");
-
-const otherBatteryElement =
-    document.getElementById("otherBattery");
-
-const otherBatteryBarElement =
-    document.getElementById("otherBatteryBar");
-
-const otherBatteryStatusElement =
-    document.getElementById("otherBatteryStatus");
-
-const chatPartnerStatus =
-    document.getElementById("chatPartnerStatus");
+const rtcConfiguration = {
+    iceServers: [
+        {
+            urls: "stun:stun.l.google.com:19302"
+        },
+        {
+            urls: "stun:stun1.l.google.com:19302"
+        }
+    ]
+};
 
 
 /* =========================================================
-   INITIAL SETUP
+   DOM HELPERS
 ========================================================= */
 
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
+const $ = id => document.getElementById(id);
 
-        setupNavigation();
+const loginScreen = $("loginScreen");
+const appScreen = $("appScreen");
 
-        setupQuickChat();
+const diaryCodeInput = $("diaryCode");
+const userNameInput = $("userName");
+const loginBtn = $("loginBtn");
+const loginLoading = $("loginLoading");
 
-        setupTheme();
+const messagesContainer = $("messagesContainer");
+const messageInput = $("messageInput");
+const sendMessageBtn = $("sendMessageBtn");
 
-        setupLogout();
+const diaryInput = $("diaryInput");
+const saveDiaryBtn = $("saveDiaryBtn");
+const diaryList = $("diaryList");
 
-        setupLogin();
-
-        setupChat();
-
-        setupCallButtons();
-
-    }
-);
+const toast = $("toast");
+const toastIcon = $("toastIcon");
+const toastMessage = $("toastMessage");
 
 
 /* =========================================================
-   LOGIN SETUP
+   UTILITIES
 ========================================================= */
 
-function setupLogin() {
+function normalizeDiaryCode(value) {
+    return String(value || "")
+        .trim()
+        .toUpperCase();
+}
 
-    if (!enterButton) {
-        return;
+
+function escapeHTML(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+function formatTime(timestamp) {
+
+    if (!timestamp) {
+        return "اکنون";
     }
 
+    let date;
 
-    enterButton.addEventListener(
-        "click",
-        loginUser
+    if (timestamp?.toDate) {
+        date = timestamp.toDate();
+    } else {
+        date = new Date(timestamp);
+    }
+
+    if (Number.isNaN(date.getTime())) {
+        return "اکنون";
+    }
+
+    return date.toLocaleTimeString("fa-IR", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
+
+function formatDate(timestamp) {
+
+    if (!timestamp) {
+        return "امروز";
+    }
+
+    let date;
+
+    if (timestamp?.toDate) {
+        date = timestamp.toDate();
+    } else {
+        date = new Date(timestamp);
+    }
+
+    if (Number.isNaN(date.getTime())) {
+        return "امروز";
+    }
+
+    return date.toLocaleDateString("fa-IR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+    });
+}
+
+
+function showToast(message, icon = "✓") {
+
+    if (!toast) return;
+
+    toastIcon.textContent = icon;
+    toastMessage.textContent = message;
+
+    toast.classList.add("show");
+
+    clearTimeout(window.__toastTimer);
+
+    window.__toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2800);
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+function setLoginLoading(state) {
+
+    if (!loginBtn) return;
+
+    loginBtn.disabled = state;
+
+    const text = loginBtn.querySelector(".btn-text");
+    const arrow = loginBtn.querySelector(".btn-arrow");
+
+    if (text) {
+        text.hidden = state;
+    }
+
+    if (arrow) {
+        arrow.hidden = state;
+    }
+
+    if (loginLoading) {
+        loginLoading.hidden = !state;
+    }
+}
+
+
+/* =========================================================
+   LOCAL SESSION
+========================================================= */
+
+function saveSession() {
+
+    localStorage.setItem(
+        "sharedDiaryCode",
+        diaryId
     );
 
+    localStorage.setItem(
+        "sharedDiaryName",
+        currentName
+    );
+}
 
-    if (diaryCodeInput) {
 
-        diaryCodeInput.addEventListener(
-            "keydown",
-            event => {
+function clearSession() {
 
-                if (event.key === "Enter") {
+    localStorage.removeItem("sharedDiaryCode");
+    localStorage.removeItem("sharedDiaryName");
+}
 
-                    event.preventDefault();
 
-                    loginUser();
+/* =========================================================
+   OPEN APP
+========================================================= */
 
-                }
+function openApp() {
 
-            }
-        );
-
+    if (loginScreen) {
+        loginScreen.hidden = true;
     }
 
-
-    if (userNameInput) {
-
-        userNameInput.addEventListener(
-            "keydown",
-            event => {
-
-                if (event.key === "Enter") {
-
-                    event.preventDefault();
-
-                    loginUser();
-
-                }
-
-            }
-        );
-
+    if (appScreen) {
+        appScreen.hidden = false;
     }
 
+    updateMyName();
+    updateSettings();
+
+    showPage("homePage");
+}
+
+
+/* =========================================================
+   CLOSE APP
+========================================================= */
+
+function closeApp() {
+
+    if (appScreen) {
+        appScreen.hidden = true;
+    }
+
+    if (loginScreen) {
+        loginScreen.hidden = false;
+    }
 }
 
 
@@ -296,445 +332,439 @@ function setupLogin() {
    LOGIN
 ========================================================= */
 
-async function loginUser() {
+async function login() {
 
-    const enteredCode =
-        diaryCodeInput.value.trim();
+    const code = normalizeDiaryCode(
+        diaryCodeInput?.value
+    );
 
-    const enteredName =
-        userNameInput.value.trim();
+    const name = userNameInput?.value.trim();
 
-
-    clearLoginError();
-
-
-    /* -----------------------------------------
-       CHECK CODE
-    ----------------------------------------- */
-
-    if (!enteredCode) {
-
-        showLoginError(
-            "لطفاً کد دفترچه را وارد کنید."
+    if (!code) {
+        showToast(
+            "کد دفترچه را وارد کنید",
+            "⚠️"
         );
 
-        diaryCodeInput.focus();
-
+        diaryCodeInput?.focus();
         return;
-
     }
 
-
-    /*
-       کاربر باید خودش کد را وارد کند.
-    */
-
-    if (
-        enteredCode !==
-        CORRECT_DIARY_CODE
-    ) {
-
-        showLoginError(
-            "کد دفترچه اشتباه است."
+    if (!name) {
+        showToast(
+            "نام خود را وارد کنید",
+            "⚠️"
         );
 
-        diaryCodeInput.focus();
-
+        userNameInput?.focus();
         return;
-
     }
 
+    if (code !== FIXED_DIARY_CODE) {
 
-    /* -----------------------------------------
-       CHECK NAME
-    ----------------------------------------- */
-
-    if (!enteredName) {
-
-        showLoginError(
-            "لطفاً نام خود را وارد کنید."
+        showToast(
+            "کد دفترچه اشتباه است",
+            "❌"
         );
 
-        userNameInput.focus();
+        diaryCodeInput?.focus();
 
         return;
-
     }
 
-
-    diaryCode =
-        enteredCode;
-
-    currentUserName =
-        enteredName;
-
-
-    enterButton.disabled =
-        true;
-
-
-    enterButton.innerHTML =
-        `
-        <span>
-            در حال ورود...
-        </span>
-        `;
-
+    setLoginLoading(true);
 
     try {
 
-        /*
-           Anonymous Authentication
-        */
-
-        if (!auth.currentUser) {
+        if (!currentUser) {
 
             await signInAnonymously(auth);
 
+            if (!currentUser) {
+                await new Promise(resolve => {
+
+                    const timeout = setTimeout(
+                        resolve,
+                        5000
+                    );
+
+                    const unsubscribe =
+                        onAuthStateChanged(
+                            auth,
+                            user => {
+
+                                if (user) {
+                                    currentUser = user;
+                                    clearTimeout(timeout);
+                                    unsubscribe();
+                                    resolve();
+                                }
+
+                            }
+                        );
+
+                });
+            }
         }
 
+        if (!currentUser) {
+            throw new Error(
+                "AUTH_FAILED"
+            );
+        }
 
-        currentUser =
-            auth.currentUser;
+        diaryId = code;
+        currentName = name;
 
+        await registerMember();
 
-        await connectToDiary();
+        saveSession();
 
+        openApp();
+
+        await setupEverything();
+
+        showToast(
+            "با موفقیت وارد شدید ❤️",
+            "✓"
+        );
 
     } catch (error) {
 
         console.error(
-            "LOGIN ERROR:",
+            "Login error:",
             error
         );
 
-
-        showLoginError(
-            getFirebaseErrorMessage(error)
+        showToast(
+            "ورود انجام نشد؛ اتصال Firebase را بررسی کنید",
+            "❌"
         );
 
+    } finally {
 
-        enterButton.disabled =
-            false;
-
-
-        enterButton.innerHTML =
-            `
-            <span>
-                ورود به دفترچه
-            </span>
-
-            <span class="button-arrow">
-                ←
-            </span>
-            `;
-
+        setLoginLoading(false);
     }
-
 }
 
 
 /* =========================================================
-   FIREBASE AUTH STATE
+   REGISTER MEMBER
 ========================================================= */
 
-onAuthStateChanged(
-    auth,
-    async user => {
+async function registerMember() {
 
-        if (!user) {
-
-            return;
-
-        }
-
-
-        currentUser =
-            user;
-
+    if (!currentUser || !diaryId) {
+        return;
     }
-);
+
+    const memberRef = doc(
+        db,
+        "diaries",
+        diaryId,
+        "members",
+        currentUser.uid
+    );
+
+    await setDoc(
+        memberRef,
+        {
+            uid: currentUser.uid,
+            name: currentName,
+            lastSeen: serverTimestamp()
+        },
+        {
+            merge: true
+        }
+    );
+}
 
 
 /* =========================================================
-   CONNECT TO DIARY
+   RESTORE SESSION
 ========================================================= */
 
-async function connectToDiary() {
+async function restoreSession() {
+
+    const savedCode =
+        localStorage.getItem(
+            "sharedDiaryCode"
+        );
+
+    const savedName =
+        localStorage.getItem(
+            "sharedDiaryName"
+        );
+
+    if (
+        savedCode !== FIXED_DIARY_CODE ||
+        !savedName
+    ) {
+        return;
+    }
 
     if (!currentUser) {
-
-        throw new Error(
-            "کاربر وارد نشده است."
-        );
-
+        return;
     }
 
+    diaryId = savedCode;
+    currentName = savedName;
 
-    const memberReference =
-        doc(
-            db,
-            "diaries",
-            diaryCode,
-            "members",
-            currentUser.uid
+    try {
+
+        await registerMember();
+
+        if (diaryCodeInput) {
+            diaryCodeInput.value = savedCode;
+        }
+
+        if (userNameInput) {
+            userNameInput.value = savedName;
+        }
+
+        openApp();
+
+        await setupEverything();
+
+    } catch (error) {
+
+        console.error(
+            "Restore session error:",
+            error
         );
 
-
-    /*
-       اول بررسی می‌کنیم آیا این کاربر
-       قبلاً عضو دفترچه بوده یا نه.
-    */
-
-    const memberSnapshot =
-        await getDoc(
-            memberReference
-        );
-
-
-    if (memberSnapshot.exists()) {
-
-        /*
-           کاربر قبلاً عضو بوده.
-        */
-
-        await updateDoc(
-            memberReference,
-            {
-                name:
-                    currentUserName,
-
-                lastSeen:
-                    serverTimestamp()
-            }
-        );
-
-    } else {
-
-        /*
-           کاربر جدید است.
-        */
-
-        await setDoc(
-            memberReference,
-            {
-                uid:
-                    currentUser.uid,
-
-                name:
-                    currentUserName,
-
-                createdAt:
-                    serverTimestamp(),
-
-                lastSeen:
-                    serverTimestamp()
-            }
-        );
-
+        clearSession();
     }
-
-
-    /*
-       بعد از موفقیت،
-       برنامه را نمایش می‌دهیم.
-    */
-
-    showApplication();
-
-
-    /*
-       شروع Sync
-    */
-
-    startMembersListener();
-
-    startMessagesListener();
-
-    startPresence();
-
-    startBattery();
-
 }
 
 
 /* =========================================================
-   SHOW APPLICATION
+   LOGOUT
 ========================================================= */
 
-function showApplication() {
+async function logout() {
 
-    if (loginScreen) {
+    try {
 
-        loginScreen.style.display =
-            "none";
+        await cleanupCall();
 
+    } catch (error) {
+        console.warn(error);
     }
 
+    stopRealtimeListeners();
 
-    if (appScreen) {
+    clearSession();
 
-        appScreen.hidden =
-            false;
+    currentName = "";
+    diaryId = null;
+    partnerUid = null;
+    partnerName = "";
 
-        appScreen.style.display =
-            "block";
-
+    if (diaryCodeInput) {
+        diaryCodeInput.value = "";
+        diaryCodeInput.readOnly = false;
     }
 
-
-    if (currentUserNameElement) {
-
-        currentUserNameElement.textContent =
-            currentUserName;
-
+    if (userNameInput) {
+        userNameInput.value = "";
     }
 
-
-    showPage(
-        "homePage"
-    );
-
+    closeApp();
 
     showToast(
-        "با موفقیت وارد دفترچه شدید ❤️"
+        "از دفترچه خارج شدید",
+        "✓"
     );
-
 }
 
 
 /* =========================================================
-   MEMBERS LISTENER
+   UPDATE MY NAME
 ========================================================= */
 
-function startMembersListener() {
+function updateMyName() {
 
-    if (unsubscribeMembers) {
+    const element = $("myName");
 
-        unsubscribeMembers();
+    if (element) {
+        element.textContent =
+            currentName || "—";
+    }
+}
 
+
+/* =========================================================
+   SETTINGS
+========================================================= */
+
+function updateSettings() {
+
+    const nameElement =
+        $("settingName");
+
+    const codeElement =
+        $("settingCode");
+
+    if (nameElement) {
+        nameElement.textContent =
+            currentName || "—";
     }
 
-
-    const membersReference =
-        collection(
-            db,
-            "diaries",
-            diaryCode,
-            "members"
-        );
+    if (codeElement) {
+        codeElement.textContent =
+            diaryId || "—";
+    }
+}
 
 
-    unsubscribeMembers =
-        onSnapshot(
-            membersReference,
-            snapshot => {
+/* =========================================================
+   NAVIGATION
+========================================================= */
 
-                members =
-                    snapshot.docs.map(
-                        item => ({
-                            id:
-                                item.id,
+function showPage(pageId) {
 
-                            ...item.data()
-                        })
-                    );
+    document
+        .querySelectorAll(".page")
+        .forEach(page => {
+
+            page.classList.toggle(
+                "active-page",
+                page.id === pageId
+            );
+
+        });
+
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(item => {
+
+            item.classList.toggle(
+                "active",
+                item.dataset.page === pageId
+            );
+
+        });
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
 
 
-                otherMember =
-                    members.find(
-                        member =>
-                            member.uid !==
-                            currentUser.uid
-                    ) || null;
+function setupNavigation() {
 
+    document
+        .querySelectorAll("[data-page]")
+        .forEach(item => {
 
-                updatePartnerStatus();
+            if (item.dataset.navReady === "1") {
+                return;
+            }
 
+            item.dataset.navReady = "1";
 
-                if (otherMember) {
+            item.addEventListener(
+                "click",
+                () => {
 
-                    subscribeOtherPresence();
+                    const page =
+                        item.dataset.page;
+
+                    if (page) {
+                        showPage(page);
+                    }
 
                 }
+            );
 
-            },
-            error => {
-
-                console.error(
-                    "MEMBERS ERROR:",
-                    error
-                );
-
-            }
-        );
-
+        });
 }
 
 
 /* =========================================================
-   MESSAGES LISTENER
+   THEME
 ========================================================= */
 
-function startMessagesListener() {
+function applyTheme(theme) {
 
-    if (unsubscribeMessages) {
+    const light =
+        theme === "light";
 
-        unsubscribeMessages();
+    document.body.classList.toggle(
+        "light-theme",
+        light
+    );
 
+    localStorage.setItem(
+        "diaryTheme",
+        light ? "light" : "dark"
+    );
+
+    const icon =
+        document.querySelector(
+            ".theme-icon"
+        );
+
+    if (icon) {
+        icon.textContent =
+            light ? "☀" : "☾";
     }
 
+    updateThemeSwitch();
+}
 
-    const messagesReference =
-        collection(
-            db,
-            "diaries",
-            diaryCode,
-            "messages"
+
+function toggleTheme() {
+
+    const isLight =
+        document.body.classList.contains(
+            "light-theme"
         );
 
+    applyTheme(
+        isLight ? "dark" : "light"
+    );
+}
 
-    const messagesQuery =
-        query(
-            messagesReference,
-            orderBy(
-                "createdAt",
-                "asc"
-            )
+
+function updateThemeSwitch() {
+
+    const light =
+        document.body.classList.contains(
+            "light-theme"
         );
 
+    const switches = [
+        $("themeToggleSettings")
+    ];
 
-    unsubscribeMessages =
-        onSnapshot(
-            messagesQuery,
-            snapshot => {
+    switches.forEach(element => {
 
-                messages =
-                    snapshot.docs.map(
-                        item => ({
-                            id:
-                                item.id,
+        if (!element) return;
 
-                            ...item.data()
-                        })
-                    );
-
-
-                renderMessages();
-
-                updateStats();
-
-            },
-            error => {
-
-                console.error(
-                    "MESSAGES ERROR:",
-                    error
-                );
-
-            }
+        element.classList.toggle(
+            "active",
+            light
         );
 
+    });
+}
+
+
+function loadTheme() {
+
+    const saved =
+        localStorage.getItem(
+            "diaryTheme"
+        );
+
+    applyTheme(
+        saved === "light"
+            ? "light"
+            : "dark"
+    );
 }
 
 
@@ -744,55 +774,67 @@ function startMessagesListener() {
 
 function setupChat() {
 
-    if (!sendButton || !messageInput) {
+    if (sendMessageBtn) {
 
-        return;
+        sendMessageBtn.onclick =
+            sendMessage;
 
     }
 
+    if (
+        messageInput &&
+        messageInput.dataset.chatReady !== "1"
+    ) {
 
-    sendButton.addEventListener(
-        "click",
-        sendMessage
-    );
+        messageInput.dataset.chatReady =
+            "1";
 
+        messageInput.addEventListener(
+            "input",
+            autoResizeTextarea
+        );
 
-    messageInput.addEventListener(
-        "keydown",
-        event => {
+        messageInput.addEventListener(
+            "keydown",
+            event => {
 
-            /*
-               Enter = ارسال
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
 
-               Shift + Enter =
-               خط جدید
-            */
+                    event.preventDefault();
+                    event.stopPropagation();
 
-            if (
-                event.key === "Enter" &&
-                !event.shiftKey
-            ) {
-
-                event.preventDefault();
-
-                sendMessage();
+                    sendMessage();
+                }
 
             }
+        );
 
-        }
-    );
+        autoResizeTextarea();
+    }
+}
 
 
-    /*
-       ارتفاع textarea
-       به صورت خودکار زیاد شود.
-    */
+/* =========================================================
+   TEXTAREA RESIZE
+========================================================= */
 
-    messageInput.addEventListener(
-        "input",
-        autoResizeTextarea
-    );
+function autoResizeTextarea() {
 
+    if (!messageInput) {
+        return;
+    }
+
+    messageInput.style.height =
+        "auto";
+
+    messageInput.style.height =
+        Math.min(
+            messageInput.scrollHeight,
+            115
+        ) + "px";
 }
 
 
@@ -800,33 +842,34 @@ function setupChat() {
    SEND MESSAGE
 ========================================================= */
 
+let sendingMessage = false;
+
 async function sendMessage() {
 
-    if (!currentUser) {
-
-        showToast(
-            "ابتدا وارد دفترچه شوید."
-        );
-
+    if (sendingMessage) {
         return;
-
     }
 
+    if (!currentUser || !diaryId) {
+        showToast(
+            "ابتدا وارد دفترچه شوید",
+            "⚠️"
+        );
+        return;
+    }
 
     const text =
-        messageInput.value.trim();
-
+        messageInput?.value.trim();
 
     if (!text) {
-
         return;
-
     }
 
+    sendingMessage = true;
 
-    sendButton.disabled =
-        true;
-
+    if (sendMessageBtn) {
+        sendMessageBtn.disabled = true;
+    }
 
     try {
 
@@ -834,63 +877,104 @@ async function sendMessage() {
             collection(
                 db,
                 "diaries",
-                diaryCode,
+                diaryId,
                 "messages"
             ),
             {
-
-                senderUid:
-                    currentUser.uid,
-
-                senderName:
-                    currentUserName,
-
-                text:
-                    text,
-
-                createdAt:
-                    serverTimestamp(),
-
-                clientCreatedAt:
-                    Date.now(),
-
-                edited:
-                    false
-
+                senderUid: currentUser.uid,
+                senderName: currentName,
+                text: text,
+                createdAt: serverTimestamp()
             }
         );
-
-
-        /*
-           بعد از ارسال،
-           کادر کاملاً خالی می‌شود.
-        */
 
         messageInput.value = "";
 
         autoResizeTextarea();
 
-        messageInput.focus();
-
-
     } catch (error) {
 
         console.error(
-            "SEND MESSAGE ERROR:",
+            "Send message:",
             error
         );
 
-
         showToast(
-            "ارسال پیام انجام نشد."
+            "ارسال پیام ناموفق بود",
+            "❌"
         );
 
+    } finally {
+
+        sendingMessage = false;
+
+        if (sendMessageBtn) {
+            sendMessageBtn.disabled = false;
+        }
+    }
+}
+
+
+/* =========================================================
+   SUBSCRIBE MESSAGES
+========================================================= */
+
+function subscribeMessages() {
+
+    if (!diaryId) return;
+
+    if (unsubscribeMessages) {
+        unsubscribeMessages();
     }
 
+    const messagesRef =
+        collection(
+            db,
+            "diaries",
+            diaryId,
+            "messages"
+        );
 
-    sendButton.disabled =
-        false;
+    const messagesQuery =
+        query(
+            messagesRef,
+            orderBy(
+                "createdAt",
+                "asc"
+            ),
+            limit(500)
+        );
 
+    unsubscribeMessages =
+        onSnapshot(
+            messagesQuery,
+            snapshot => {
+
+                currentMessages =
+                    snapshot.docs.map(
+                        item => ({
+                            id: item.id,
+                            ...item.data()
+                        })
+                    );
+
+                renderMessages();
+                updateMessageCount();
+
+            },
+            error => {
+
+                console.error(
+                    "Messages listener:",
+                    error
+                );
+
+                showToast(
+                    "خطا در دریافت پیام‌ها",
+                    "❌"
+                );
+            }
+        );
 }
 
 
@@ -900,1468 +984,219 @@ async function sendMessage() {
 
 function renderMessages() {
 
-    if (!chatElement) {
-
+    if (!messagesContainer) {
         return;
-
     }
 
+    if (!currentMessages.length) {
 
-    chatElement.innerHTML =
-        "";
-
-
-    const hiddenMessages =
-        getDeletedForMe();
-
-
-    const visibleMessages =
-        messages.filter(
-            message =>
-                !hiddenMessages.includes(
-                    message.id
-                )
-        );
-
-
-    if (
-        visibleMessages.length === 0
-    ) {
-
-        const empty =
-            document.createElement(
-                "div"
-            );
-
-
-        empty.className =
-            "empty-chat";
-
-
-        empty.innerHTML =
-            `
-            <div>
-                💬
+        messagesContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">💬</div>
+                <h3>هنوز پیامی وجود ندارد</h3>
+                <p>اولین پیام را شما بفرستید.</p>
             </div>
-
-            <strong>
-                هنوز پیامی نیست
-            </strong>
-
-            <span>
-                اولین پیام را بفرست ❤️
-            </span>
-            `;
-
-
-        chatElement.appendChild(
-            empty
-        );
-
-
-        return;
-
-    }
-
-
-    visibleMessages.forEach(
-        message => {
-
-            const mine =
-                currentUser &&
-                message.senderUid ===
-                currentUser.uid;
-
-
-            const row =
-                document.createElement(
-                    "div"
-                );
-
-
-            row.className =
-                mine
-                    ? "message-row mine"
-                    : "message-row other";
-
-
-            const bubble =
-                document.createElement(
-                    "div"
-                );
-
-
-            bubble.className =
-                mine
-                    ? "message-bubble mine"
-                    : "message-bubble other";
-
-
-            const text =
-                document.createElement(
-                    "div"
-                );
-
-
-            text.className =
-                "message-text";
-
-
-            /*
-               textContent استفاده شده
-               تا HTML از پیام اجرا نشود.
-            */
-
-            text.textContent =
-                message.text || "";
-
-
-            bubble.appendChild(
-                text
-            );
-
-
-            if (message.edited) {
-
-                const edited =
-                    document.createElement(
-                        "span"
-                    );
-
-
-                edited.className =
-                    "message-edited";
-
-
-                edited.textContent =
-                    "ویرایش‌شده";
-
-
-                bubble.appendChild(
-                    edited
-                );
-
-            }
-
-
-            const time =
-                document.createElement(
-                    "div"
-                );
-
-
-            time.className =
-                "message-time";
-
-
-            time.textContent =
-                getMessageTime(
-                    message
-                );
-
-
-            bubble.appendChild(
-                time
-            );
-
-
-            row.appendChild(
-                bubble
-            );
-
-
-            /*
-               کلیک راست روی دسکتاپ
-            */
-
-            row.addEventListener(
-                "contextmenu",
-                event => {
-
-                    event.preventDefault();
-
-                    openMessageMenu(
-                        message
-                    );
-
-                }
-            );
-
-
-            /*
-               نگه داشتن انگشت روی موبایل
-            */
-
-            addLongPress(
-                row,
-                message
-            );
-
-
-            chatElement.appendChild(
-                row
-            );
-
-        }
-    );
-
-
-    /*
-       اسکرول به آخرین پیام
-    */
-
-    requestAnimationFrame(
-        () => {
-
-            chatElement.scrollTop =
-                chatElement.scrollHeight;
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   MESSAGE TIME
-========================================================= */
-
-function getMessageTime(message) {
-
-    let date = null;
-
-
-    if (
-        message.createdAt &&
-        typeof message.createdAt.toDate ===
-            "function"
-    ) {
-
-        date =
-            message.createdAt.toDate();
-
-    }
-
-
-    if (
-        !date &&
-        message.clientCreatedAt
-    ) {
-
-        date =
-            new Date(
-                message.clientCreatedAt
-            );
-
-    }
-
-
-    if (!date) {
-
-        return "";
-
-    }
-
-
-    return date.toLocaleTimeString(
-        "fa-IR",
-        {
-            hour:
-                "2-digit",
-
-            minute:
-                "2-digit"
-        }
-    );
-
-}
-
-
-/* =========================================================
-   LONG PRESS
-========================================================= */
-
-function addLongPress(
-    element,
-    message
-) {
-
-    let timer = null;
-
-
-    element.addEventListener(
-        "touchstart",
-        () => {
-
-            timer =
-                setTimeout(
-                    () => {
-
-                        openMessageMenu(
-                            message
-                        );
-
-                    },
-                    600
-                );
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    element.addEventListener(
-        "touchend",
-        () => {
-
-            clearTimeout(
-                timer
-            );
-
-        }
-    );
-
-
-    element.addEventListener(
-        "touchmove",
-        () => {
-
-            clearTimeout(
-                timer
-            );
-
-        },
-        {
-            passive: true
-        }
-    );
-
-}
-
-
-/* =========================================================
-   MESSAGE MENU
-========================================================= */
-
-function openMessageMenu(
-    message
-) {
-
-    selectedMessage =
-        message;
-
-
-    closeExistingMessageMenu();
-
-
-    const mine =
-        currentUser &&
-        message.senderUid ===
-        currentUser.uid;
-
-
-    const overlay =
-        document.createElement(
-            "div"
-        );
-
-
-    overlay.className =
-        "message-action-overlay";
-
-
-    const menu =
-        document.createElement(
-            "div"
-        );
-
-
-    menu.className =
-        "message-action-menu";
-
-
-    const title =
-        document.createElement(
-            "div"
-        );
-
-
-    title.className =
-        "message-action-title";
-
-
-    title.textContent =
-        "مدیریت پیام";
-
-
-    menu.appendChild(
-        title
-    );
-
-
-    const buttons =
-        document.createElement(
-            "div"
-        );
-
-
-    buttons.className =
-        "message-action-buttons";
-
-
-    /*
-       کپی
-    */
-
-    buttons.appendChild(
-        createActionButton(
-            "📋 کپی پیام",
-            "copy",
-            () => {
-
-                copyMessage(
-                    message
-                );
-
-                closeExistingMessageMenu();
-
-            }
-        )
-    );
-
-
-    /*
-       اگر پیام مال خودمان است
-    */
-
-    if (mine) {
-
-        buttons.appendChild(
-            createActionButton(
-                "✏️ ویرایش پیام",
-                "edit",
-                () => {
-
-                    closeExistingMessageMenu();
-
-                    openEditMessage(
-                        message
-                    );
-
-                }
-            )
-        );
-
-
-        /*
-           حذف برای خودم
-        */
-
-        buttons.appendChild(
-            createActionButton(
-                "🗑 حذف برای من",
-                "warning",
-                () => {
-
-                    deleteForMe(
-                        message.id
-                    );
-
-                    closeExistingMessageMenu();
-
-                }
-            )
-        );
-
-
-        /*
-           حذف برای هر دو نفر
-        */
-
-        buttons.appendChild(
-            createActionButton(
-                "🗑 حذف برای هر دو نفر",
-                "danger",
-                async () => {
-
-                    closeExistingMessageMenu();
-
-                    await deleteForEveryone(
-                        message
-                    );
-
-                }
-            )
-        );
-
-    } else {
-
-        /*
-           پیام طرف مقابل
-        */
-
-        buttons.appendChild(
-            createActionButton(
-                "🗑 حذف برای من",
-                "warning",
-                () => {
-
-                    deleteForMe(
-                        message.id
-                    );
-
-                    closeExistingMessageMenu();
-
-                }
-            )
-        );
-
-    }
-
-
-    /*
-       بستن
-    */
-
-    buttons.appendChild(
-        createActionButton(
-            "بستن",
-            "copy",
-            () => {
-
-                closeExistingMessageMenu();
-
-            }
-        )
-    );
-
-
-    menu.appendChild(
-        buttons
-    );
-
-
-    overlay.appendChild(
-        menu
-    );
-
-
-    document.body.appendChild(
-        overlay
-    );
-
-
-    /*
-       کلیک بیرون منو
-    */
-
-    overlay.addEventListener(
-        "click",
-        event => {
-
-            if (
-                event.target ===
-                overlay
-            ) {
-
-                closeExistingMessageMenu();
-
-            }
-
-        }
-    );
-
-
-    requestAnimationFrame(
-        () => {
-
-            overlay.classList.add(
-                "show"
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   CREATE ACTION BUTTON
-========================================================= */
-
-function createActionButton(
-    text,
-    type,
-    callback
-) {
-
-    const button =
-        document.createElement(
-            "button"
-        );
-
-
-    button.type =
-        "button";
-
-
-    button.className =
-        `message-action-button ${type}`;
-
-
-    button.textContent =
-        text;
-
-
-    button.addEventListener(
-        "click",
-        callback
-    );
-
-
-    return button;
-
-}
-
-
-/* =========================================================
-   CLOSE MESSAGE MENU
-========================================================= */
-
-function closeExistingMessageMenu() {
-
-    const old =
-        document.querySelector(
-            ".message-action-overlay"
-        );
-
-
-    if (old) {
-
-        old.remove();
-
-    }
-
-
-    selectedMessage =
-        null;
-
-}
-
-
-/* =========================================================
-   COPY MESSAGE
-========================================================= */
-
-async function copyMessage(
-    message
-) {
-
-    try {
-
-        await navigator.clipboard.writeText(
-            message.text || ""
-        );
-
-
-        showToast(
-            "پیام کپی شد 📋"
-        );
-
-
-    } catch (error) {
-
-        console.error(error);
-
-        showToast(
-            "کپی پیام انجام نشد."
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   DELETE FOR ME
-========================================================= */
-
-function deleteForMe(
-    messageId
-) {
-
-    const deleted =
-        getDeletedForMe();
-
-
-    if (
-        !deleted.includes(
-            messageId
-        )
-    ) {
-
-        deleted.push(
-            messageId
-        );
-
-    }
-
-
-    localStorage.setItem(
-        getDeletedStorageKey(),
-        JSON.stringify(
-            deleted
-        )
-    );
-
-
-    renderMessages();
-
-    showToast(
-        "پیام برای شما حذف شد."
-    );
-
-}
-
-
-/* =========================================================
-   GET DELETED MESSAGES
-========================================================= */
-
-function getDeletedForMe() {
-
-    try {
-
-        const data =
-            localStorage.getItem(
-                getDeletedStorageKey()
-            );
-
-
-        return data
-            ? JSON.parse(data)
-            : [];
-
-    } catch {
-
-        return [];
-
-    }
-
-}
-
-
-/* =========================================================
-   DELETED STORAGE KEY
-========================================================= */
-
-function getDeletedStorageKey() {
-
-    const uid =
-        currentUser
-            ? currentUser.uid
-            : "unknown";
-
-
-    return `
-        sharedDiaryDeletedMessages_
-        ${diaryCode}_
-        ${uid}
-    `.replace(
-        /\s/g,
-        ""
-    );
-
-}
-
-
-/* =========================================================
-   DELETE FOR EVERYONE
-========================================================= */
-
-async function deleteForEveryone(
-    message
-) {
-
-    if (!currentUser) {
-
-        return;
-
-    }
-
-
-    if (
-        message.senderUid !==
-        currentUser.uid
-    ) {
-
-        showToast(
-            "فقط صاحب پیام می‌تواند آن را برای هر دو نفر حذف کند."
-        );
-
-        return;
-
-    }
-
-
-    try {
-
-        await deleteDoc(
-            doc(
-                db,
-                "diaries",
-                diaryCode,
-                "messages",
-                message.id
-            )
-        );
-
-
-        showToast(
-            "پیام برای هر دو نفر حذف شد."
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            error
-        );
-
-
-        showToast(
-            "حذف پیام انجام نشد."
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   EDIT MESSAGE
-========================================================= */
-
-function openEditMessage(
-    message
-) {
-
-    if (!currentUser) {
-
-        return;
-
-    }
-
-
-    if (
-        message.senderUid !==
-        currentUser.uid
-    ) {
-
-        return;
-
-    }
-
-
-    const overlay =
-        document.createElement(
-            "div"
-        );
-
-
-    overlay.className =
-        "modal-overlay";
-
-
-    const modal =
-        document.createElement(
-            "div"
-        );
-
-
-    modal.className =
-        "modal-card";
-
-
-    modal.innerHTML =
-        `
-        <h3>
-            ویرایش پیام
-        </h3>
-
-        <textarea
-            class="edit-message-input"
-        ></textarea>
-
-        <div class="modal-actions">
-
-            <button
-                type="button"
-                class="modal-cancel"
-            >
-                انصراف
-            </button>
-
-            <button
-                type="button"
-                class="modal-confirm"
-            >
-                ذخیره
-            </button>
-
-        </div>
         `;
 
+        return;
+    }
 
-    const input =
-        modal.querySelector(
-            ".edit-message-input"
+    const fragment =
+        document.createDocumentFragment();
+
+    currentMessages.forEach(message => {
+
+        const mine =
+            message.senderUid ===
+            currentUser?.uid;
+
+        const row =
+            document.createElement("div");
+
+        row.className =
+            `message-row ${
+                mine ? "mine" : "theirs"
+            }`;
+
+        const bubble =
+            document.createElement("div");
+
+        bubble.className =
+            "message-bubble";
+
+        const name =
+            document.createElement("span");
+
+        name.className =
+            "message-name";
+
+        name.textContent =
+            mine
+                ? "شما"
+                : message.senderName || "نفر دوم";
+
+        const text =
+            document.createElement("div");
+
+        text.textContent =
+            message.text || "";
+
+        const time =
+            document.createElement("span");
+
+        time.className =
+            "message-time";
+
+        time.textContent =
+            formatTime(
+                message.createdAt
+            );
+
+        bubble.append(
+            name,
+            text,
+            time
         );
 
+        row.appendChild(bubble);
 
-    const cancel =
-        modal.querySelector(
-            ".modal-cancel"
+        fragment.appendChild(row);
+    });
+
+    messagesContainer.replaceChildren(
+        fragment
+    );
+
+    requestAnimationFrame(() => {
+
+        messagesContainer.scrollTop =
+            messagesContainer.scrollHeight;
+
+    });
+}
+
+
+/* =========================================================
+   MESSAGE COUNT
+========================================================= */
+
+function updateMessageCount() {
+
+    const element =
+        $("messageCount");
+
+    if (element) {
+        element.textContent =
+            currentMessages.length;
+    }
+}
+
+
+/* =========================================================
+   MEMBERS
+========================================================= */
+
+function subscribeMembers() {
+
+    if (!diaryId) {
+        return;
+    }
+
+    if (unsubscribeMembers) {
+        unsubscribeMembers();
+    }
+
+    const membersRef =
+        collection(
+            db,
+            "diaries",
+            diaryId,
+            "members"
         );
 
+    unsubscribeMembers =
+        onSnapshot(
+            membersRef,
+            snapshot => {
 
-    const confirm =
-        modal.querySelector(
-            ".modal-confirm"
-        );
+                let foundPartner = null;
 
+                snapshot.forEach(
+                    member => {
 
-    input.value =
-        message.text || "";
+                        const data =
+                            member.data();
 
+                        if (
+                            member.id !==
+                            currentUser?.uid
+                        ) {
 
-    overlay.appendChild(
-        modal
-    );
+                            foundPartner = {
+                                uid: member.id,
+                                ...data
+                            };
 
+                        }
 
-    document.body.appendChild(
-        overlay
-    );
-
-
-    input.focus();
-
-
-    cancel.addEventListener(
-        "click",
-        () => {
-
-            overlay.remove();
-
-        }
-    );
-
-
-    confirm.addEventListener(
-        "click",
-        async () => {
-
-            const newText =
-                input.value.trim();
-
-
-            if (!newText) {
-
-                showToast(
-                    "پیام نمی‌تواند خالی باشد."
-                );
-
-                return;
-
-            }
-
-
-            confirm.disabled =
-                true;
-
-
-            try {
-
-                await updateDoc(
-                    doc(
-                        db,
-                        "diaries",
-                        diaryCode,
-                        "messages",
-                        message.id
-                    ),
-                    {
-                        text:
-                            newText,
-
-                        edited:
-                            true
                     }
                 );
 
+                if (foundPartner) {
 
-                overlay.remove();
+                    partnerUid =
+                        foundPartner.uid;
 
+                    partnerName =
+                        foundPartner.name ||
+                        "نفر دوم";
 
-                showToast(
-                    "پیام ویرایش شد ✏️"
-                );
+                } else {
 
+                    partnerUid = null;
+                    partnerName = "";
 
-            } catch (error) {
+                }
+
+                updatePartnerUI();
+
+            },
+            error => {
 
                 console.error(
+                    "Members listener:",
                     error
                 );
+            }
+        );
+}
 
 
-                confirm.disabled =
-                    false;
+/* =========================================================
+   PARTNER UI
+========================================================= */
 
+function updatePartnerUI() {
 
-                showToast(
-                    "ویرایش پیام انجام نشد."
-                );
+    const name =
+        partnerName || "در انتظار...";
 
+    const elements = [
+        $("partnerName"),
+        $("callPartnerName"),
+        $("incomingCallerName")
+    ];
+
+    elements.forEach(
+        element => {
+
+            if (element) {
+                element.textContent =
+                    name;
             }
 
         }
     );
-
-}
-
-
-/* =========================================================
-   AUTO RESIZE TEXTAREA
-========================================================= */
-
-function autoResizeTextarea() {
-
-    if (!messageInput) {
-
-        return;
-
-    }
-
-
-    messageInput.style.height =
-        "auto";
-
-
-    messageInput.style.height =
-        Math.min(
-            messageInput.scrollHeight,
-            130
-        ) + "px";
-
-}
-
-
-/* =========================================================
-   UPDATE STATS
-========================================================= */
-
-function updateStats() {
-
-    if (messageCountElement) {
-
-        messageCountElement.textContent =
-            messages.length.toLocaleString(
-                "fa-IR"
-            );
-
-    }
-
-
-    /*
-       فعلاً تعداد Favorite را
-       از پیام‌های دارای favorite می‌گیریم.
-    */
-
-    const favoriteCount =
-        messages.filter(
-            message =>
-                message.favorite === true
-        ).length;
-
-
-    if (favoriteCountElement) {
-
-        favoriteCountElement.textContent =
-            favoriteCount.toLocaleString(
-                "fa-IR"
-            );
-
-    }
-
-
-    /*
-       تعداد روزهای دارای پیام
-    */
-
-    const uniqueDays =
-        new Set();
-
-
-    messages.forEach(
-        message => {
-
-            let date = null;
-
-
-            if (
-                message.createdAt &&
-                typeof message.createdAt.toDate ===
-                    "function"
-            ) {
-
-                date =
-                    message.createdAt.toDate();
-
-            } else if (
-                message.clientCreatedAt
-            ) {
-
-                date =
-                    new Date(
-                        message.clientCreatedAt
-                    );
-
-            }
-
-
-            if (date) {
-
-                uniqueDays.add(
-                    date.toISOString().slice(
-                        0,
-                        10
-                    )
-                );
-
-            }
-
-        }
-    );
-
-
-    if (daysCountElement) {
-
-        daysCountElement.textContent =
-            uniqueDays.size.toLocaleString(
-                "fa-IR"
-            );
-
-    }
-
-}
-
-
-/* =========================================================
-   NAVIGATION
-========================================================= */
-
-function setupNavigation() {
-
-    const navItems =
-        document.querySelectorAll(
-            ".nav-item"
-        );
-
-
-    navItems.forEach(
-        item => {
-
-            item.addEventListener(
-                "click",
-                () => {
-
-                    const page =
-                        item.dataset.page;
-
-
-                    if (!page) {
-
-                        return;
-
-                    }
-
-
-                    showPage(
-                        page
-                    );
-
-                }
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   SHOW PAGE
-========================================================= */
-
-function showPage(
-    pageId
-) {
-
-    const pages =
-        document.querySelectorAll(
-            ".page"
-        );
-
-
-    pages.forEach(
-        page => {
-
-            page.hidden =
-                page.id !==
-                pageId;
-
-        }
-    );
-
-
-    const navItems =
-        document.querySelectorAll(
-            ".nav-item"
-        );
-
-
-    navItems.forEach(
-        item => {
-
-            item.classList.toggle(
-                "active",
-                item.dataset.page ===
-                pageId
-            );
-
-        }
-    );
-
-
-    window.scrollTo(
-        {
-            top: 0,
-            behavior: "smooth"
-        }
-    );
-
-}
-
-
-/* =========================================================
-   QUICK CHAT
-========================================================= */
-
-function setupQuickChat() {
-
-    const buttons =
-        document.querySelectorAll(
-            "[data-open-page]"
-        );
-
-
-    buttons.forEach(
-        button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    showPage(
-                        button.dataset.openPage
-                    );
-
-                }
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   THEME
-========================================================= */
-
-function setupTheme() {
-
-    const themeButton =
-        document.getElementById(
-            "themeToggle"
-        );
-
-
-    const savedTheme =
-        localStorage.getItem(
-            "sharedDiaryTheme"
-        );
-
-
-    if (
-        savedTheme ===
-        "dark"
-    ) {
-
-        document.body.classList.add(
-            "dark"
-        );
-
-    }
-
-
-    updateThemeButton();
-
-
-    if (themeButton) {
-
-        themeButton.addEventListener(
-            "click",
-            () => {
-
-                document.body.classList.toggle(
-                    "dark"
-                );
-
-
-                const dark =
-                    document.body.classList.contains(
-                        "dark"
-                    );
-
-
-                localStorage.setItem(
-                    "sharedDiaryTheme",
-                    dark
-                        ? "dark"
-                        : "light"
-                );
-
-
-                updateThemeButton();
-
-            }
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   UPDATE THEME BUTTON
-========================================================= */
-
-function updateThemeButton() {
-
-    const button =
-        document.getElementById(
-            "themeToggle"
-        );
-
-
-    if (!button) {
-
-        return;
-
-    }
-
-
-    const dark =
-        document.body.classList.contains(
-            "dark"
-        );
-
-
-    button.textContent =
-        dark
-            ? "☀️"
-            : "🌙";
-
-}
-
-
-/* =========================================================
-   LOGOUT
-========================================================= */
-
-function setupLogout() {
-
-    const button =
-        document.getElementById(
-            "logoutBtn"
-        );
-
-
-    if (!button) {
-
-        return;
-
-    }
-
-
-    button.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                if (unsubscribeMessages) {
-
-                    unsubscribeMessages();
-
-                }
-
-
-                if (unsubscribeMembers) {
-
-                    unsubscribeMembers();
-
-                }
-
-
-                if (unsubscribeMyPresence) {
-
-                    unsubscribeMyPresence();
-
-                }
-
-
-                if (unsubscribeOtherPresence) {
-
-                    unsubscribeOtherPresence();
-
-                }
-
-
-                await signOut(
-                    auth
-                );
-
-
-            } catch (error) {
-
-                console.error(
-                    error
-                );
-
-            }
-
-
-            location.reload();
-
-        }
-    );
-
 }
 
 
@@ -2369,189 +1204,158 @@ function setupLogout() {
    PRESENCE
 ========================================================= */
 
-function startPresence() {
+function setupPresence() {
 
-    if (!currentUser || !diaryCode) {
-
+    if (!currentUser || !diaryId) {
         return;
-
     }
 
-
-    const presenceReference =
+    const connectedRef =
         ref(
-            realtimeDB,
-            `diaries/${encodeURIComponent(diaryCode)}/presence/${currentUser.uid}`
+            rtdb,
+            ".info/connected"
         );
 
+    const presenceRef =
+        ref(
+            rtdb,
+            `diaries/${diaryId}/presence/${currentUser.uid}`
+        );
 
-    set(
-        presenceReference,
-        {
-            online:
-                true,
+    onValue(
+        connectedRef,
+        snapshot => {
 
-            name:
-                currentUserName,
+            if (snapshot.val() !== true) {
+                return;
+            }
 
-            updatedAt:
-                Date.now()
-        }
-    ).catch(
-        error => {
+            onDisconnect(
+                presenceRef
+            ).set({
+                online: false,
+                lastSeen:
+                    rtdbTimestamp()
+            });
 
-            console.error(
-                "PRESENCE SET ERROR:",
-                error
+            set(
+                presenceRef,
+                {
+                    online: true,
+                    name: currentName,
+                    lastSeen:
+                        rtdbTimestamp()
+                }
             );
 
         }
     );
 
-
-    onDisconnect(
-        presenceReference
-    ).set(
-        {
-            online:
-                false,
-
-            name:
-                currentUserName,
-
-            updatedAt:
-                Date.now()
-        }
-    );
-
-
-    /*
-       وضعیت خودمان
-    */
-
-    unsubscribeMyPresence =
-        onValue(
-            presenceReference,
-            snapshot => {
-
-                const data =
-                    snapshot.val();
-
-
-                if (!data) {
-
-                    return;
-
-                }
-
-            }
-        );
-
-}
-
-
-/* =========================================================
-   OTHER USER PRESENCE
-========================================================= */
-
-function subscribeOtherPresence() {
-
-    if (
-        !otherMember ||
-        !diaryCode
-    ) {
-
-        return;
-
-    }
-
-
-    if (unsubscribeOtherPresence) {
-
-        unsubscribeOtherPresence();
-
-    }
-
-
-    const reference =
+    const partnerPresence =
         ref(
-            realtimeDB,
-            `diaries/${encodeURIComponent(diaryCode)}/presence/${otherMember.uid}`
+            rtdb,
+            `diaries/${diaryId}/presence`
         );
 
+    onValue(
+        partnerPresence,
+        snapshot => {
 
-    unsubscribeOtherPresence =
-        onValue(
-            reference,
-            snapshot => {
+            const data =
+                snapshot.val() || {};
 
-                const data =
-                    snapshot.val();
+            let partner = null;
 
+            Object.entries(data)
+                .forEach(
+                    ([uid, value]) => {
 
-                if (
-                    data &&
-                    data.online
-                ) {
+                        if (
+                            uid !==
+                            currentUser.uid
+                        ) {
 
-                    if (chatPartnerStatus) {
+                            partner = {
+                                uid,
+                                ...value
+                            };
 
-                        chatPartnerStatus.textContent =
-                            "آنلاین 🟢";
-
-                    }
-
-                } else {
-
-                    if (chatPartnerStatus) {
-
-                        chatPartnerStatus.textContent =
-                            "آفلاین";
+                        }
 
                     }
-
-                }
-
-            },
-            error => {
-
-                console.error(
-                    "OTHER PRESENCE ERROR:",
-                    error
                 );
 
-            }
-        );
+            updatePartnerPresence(
+                partner
+            );
 
+        }
+    );
 }
 
 
 /* =========================================================
-   PARTNER STATUS
+   UPDATE PARTNER PRESENCE
 ========================================================= */
 
-function updatePartnerStatus() {
+function updatePartnerPresence(
+    presence
+) {
 
-    if (!chatPartnerStatus) {
+    const status =
+        $("partnerStatus");
 
-        return;
+    const statusText =
+        $("partnerStatusText");
 
+    const dot =
+        $("partnerOnlineDot");
+
+    const topDot =
+        $("partnerStatusDot");
+
+    const online =
+        Boolean(
+            presence?.online
+        );
+
+    if (status) {
+        status.textContent =
+            online
+                ? "آنلاین"
+                : "آفلاین";
     }
 
-
-    if (otherMember) {
-
-        chatPartnerStatus.textContent =
-            otherMember.name ||
-            "نفر دیگر";
-
-    } else {
-
-        chatPartnerStatus.textContent =
-            "منتظر نفر دیگر...";
-
+    if (statusText) {
+        statusText.textContent =
+            online
+                ? "اکنون آنلاین است"
+                : "آفلاین";
     }
 
+    if (dot) {
+        dot.style.background =
+            online
+                ? "var(--success)"
+                : "#555";
+    }
+
+    if (topDot) {
+        topDot.style.background =
+            online
+                ? "var(--success)"
+                : "#555";
+    }
+
+    const chatStatus =
+        $("chatStatus");
+
+    if (chatStatus) {
+        chatStatus.textContent =
+            online
+                ? "نفر دوم آنلاین است"
+                : "نفر دوم آفلاین است";
+    }
 }
 
 
@@ -2559,306 +1363,385 @@ function updatePartnerStatus() {
    BATTERY
 ========================================================= */
 
-async function startBattery() {
-
-    if (!currentUser) {
-
-        return;
-
-    }
-
-
-    /*
-       مرورگرهایی که Battery API دارند
-    */
+async function setupBattery() {
 
     if (
-        "getBattery" in navigator
+        !navigator.getBattery
     ) {
-
-        try {
-
-            const battery =
-                await navigator.getBattery();
-
-
-            updateMyBattery(
-                battery
-            );
-
-
-            battery.addEventListener(
-                "levelchange",
-                () => {
-
-                    updateMyBattery(
-                        battery
-                    );
-
-                }
-            );
-
-
-            battery.addEventListener(
-                "chargingchange",
-                () => {
-
-                    updateMyBattery(
-                        battery
-                    );
-
-                }
-            );
-
-
-            /*
-               ارسال باتری به Realtime Database
-            */
-
-            const batteryReference =
-                ref(
-                    realtimeDB,
-                    `diaries/${encodeURIComponent(diaryCode)}/battery/${currentUser.uid}`
-                );
-
-
-            const syncBattery =
-                () => {
-
-                    set(
-                        batteryReference,
-                        {
-                            level:
-                                Math.round(
-                                    battery.level *
-                                    100
-                                ),
-
-                            charging:
-                                battery.charging,
-
-                            updatedAt:
-                                Date.now()
-                        }
-                    ).catch(
-                        error => {
-
-                            console.error(
-                                "BATTERY SYNC ERROR:",
-                                error
-                            );
-
-                        }
-                    );
-
-                };
-
-
-            syncBattery();
-
-
-            battery.addEventListener(
-                "levelchange",
-                syncBattery
-            );
-
-
-            battery.addEventListener(
-                "chargingchange",
-                syncBattery
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "BATTERY ERROR:",
-                error
-            );
-
-
-            setBatteryUnavailable();
-
-        }
-
-    } else {
-
-        setBatteryUnavailable();
-
+        return;
     }
 
+    try {
 
-    /*
-       باتری نفر دوم
-    */
+        batteryManager =
+            await navigator.getBattery();
 
-    subscribeOtherBattery();
+        updateOwnBattery();
 
+        batteryManager.addEventListener(
+            "levelchange",
+            updateOwnBattery
+        );
+
+        batteryManager.addEventListener(
+            "chargingchange",
+            updateOwnBattery
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Battery API unavailable:",
+            error
+        );
+    }
 }
 
 
-/* =========================================================
-   UPDATE MY BATTERY
-========================================================= */
+function updateOwnBattery() {
 
-function updateMyBattery(
-    battery
-) {
+    if (!batteryManager) {
+        return;
+    }
 
     const level =
         Math.round(
-            battery.level *
-            100
+            batteryManager.level * 100
         );
 
-
-    if (myBatteryElement) {
-
-        myBatteryElement.textContent =
-            `${level}%`;
-
-    }
-
-
-    if (myBatteryBarElement) {
-
-        myBatteryBarElement.style.width =
-            `${level}%`;
-
-    }
-
-
-    if (myBatteryStatusElement) {
-
-        myBatteryStatusElement.textContent =
-            battery.charging
-                ? "در حال شارژ ⚡"
-                : "در حال استفاده";
-
-    }
-
+    console.log(
+        "Battery:",
+        level + "%"
+    );
 }
 
 
 /* =========================================================
-   BATTERY UNAVAILABLE
+   DIARY
 ========================================================= */
 
-function setBatteryUnavailable() {
+function subscribeDiary() {
 
-    if (myBatteryElement) {
-
-        myBatteryElement.textContent =
-            "--%";
-
+    if (!diaryId) {
+        return;
     }
 
-
-    if (myBatteryStatusElement) {
-
-        myBatteryStatusElement.textContent =
-            "قابل تشخیص نیست";
-
+    if (unsubscribeDiary) {
+        unsubscribeDiary();
     }
 
+    const diaryRef =
+        collection(
+            db,
+            "diaries",
+            diaryId,
+            "entries"
+        );
+
+    const diaryQuery =
+        query(
+            diaryRef,
+            orderBy(
+                "createdAt",
+                "desc"
+            ),
+            limit(200)
+        );
+
+    unsubscribeDiary =
+        onSnapshot(
+            diaryQuery,
+            snapshot => {
+
+                currentDiaryEntries =
+                    snapshot.docs.map(
+                        item => ({
+                            id: item.id,
+                            ...item.data()
+                        })
+                    );
+
+                renderDiary();
+                updateDiaryCount();
+
+            },
+            error => {
+
+                console.error(
+                    "Diary listener:",
+                    error
+                );
+            }
+        );
 }
 
 
 /* =========================================================
-   OTHER BATTERY
+   SAVE DIARY
 ========================================================= */
 
-function subscribeOtherBattery() {
+let savingDiary = false;
 
-    if (
-        !otherMember ||
-        !diaryCode
-    ) {
+async function saveDiary() {
+
+    if (savingDiary) {
+        return;
+    }
+
+    if (!currentUser || !diaryId) {
+        return;
+    }
+
+    const text =
+        diaryInput?.value.trim();
+
+    if (!text) {
+
+        showToast(
+            "متن خاطره را بنویسید",
+            "⚠️"
+        );
+
+        diaryInput?.focus();
 
         return;
-
     }
 
+    savingDiary = true;
 
-    const reference =
-        ref(
-            realtimeDB,
-            `diaries/${encodeURIComponent(diaryCode)}/battery/${otherMember.uid}`
+    if (saveDiaryBtn) {
+        saveDiaryBtn.disabled = true;
+    }
+
+    try {
+
+        await addDoc(
+            collection(
+                db,
+                "diaries",
+                diaryId,
+                "entries"
+            ),
+            {
+                authorUid:
+                    currentUser.uid,
+
+                authorName:
+                    currentName,
+
+                text,
+
+                createdAt:
+                    serverTimestamp()
+            }
         );
 
+        diaryInput.value = "";
 
-    onValue(
-        reference,
-        snapshot => {
+        showToast(
+            "خاطره ذخیره شد ✨",
+            "✓"
+        );
 
-            const data =
-                snapshot.val();
+    } catch (error) {
 
+        console.error(
+            "Save diary:",
+            error
+        );
 
-            if (!data) {
+        showToast(
+            "ذخیره خاطره ناموفق بود",
+            "❌"
+        );
 
-                if (otherBatteryElement) {
+    } finally {
 
-                    otherBatteryElement.textContent =
-                        "--%";
+        savingDiary = false;
 
-                }
-
-
-                if (otherBatteryStatusElement) {
-
-                    otherBatteryStatusElement.textContent =
-                        "منتظر اطلاعات...";
-
-                }
-
-                return;
-
-            }
-
-
-            const level =
-                Number(
-                    data.level || 0
-                );
+        if (saveDiaryBtn) {
+            saveDiaryBtn.disabled = false;
+        }
+    }
+}
 
 
-            if (otherBatteryElement) {
+/* =========================================================
+   RENDER DIARY
+========================================================= */
 
-                otherBatteryElement.textContent =
-                    `${level}%`;
+function renderDiary() {
 
-            }
+    if (!diaryList) {
+        return;
+    }
 
+    if (!currentDiaryEntries.length) {
 
-            if (otherBatteryBarElement) {
+        diaryList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📖</div>
+                <h3>هنوز خاطره‌ای ثبت نشده</h3>
+                <p>اولین خاطره را ثبت کنید.</p>
+            </div>
+        `;
 
-                otherBatteryBarElement.style.width =
-                    `${level}%`;
+        return;
+    }
 
-            }
+    const fragment =
+        document.createDocumentFragment();
 
+    currentDiaryEntries.forEach(
+        entry => {
 
-            if (otherBatteryStatusElement) {
+            const item =
+                document.createElement("article");
 
-                otherBatteryStatusElement.textContent =
-                    data.charging
-                        ? "در حال شارژ ⚡"
-                        : "در حال استفاده";
+            item.className =
+                "diary-item";
 
-            }
+            const date =
+                document.createElement("div");
 
-        },
-        error => {
+            date.className =
+                "diary-date";
 
-            console.error(
-                "OTHER BATTERY ERROR:",
-                error
+            date.textContent =
+                `${formatDate(
+                    entry.createdAt
+                )} • ${
+                    entry.authorName ||
+                    "عضو دفترچه"
+                }`;
+
+            const text =
+                document.createElement("div");
+
+            text.className =
+                "diary-text";
+
+            text.textContent =
+                entry.text || "";
+
+            item.append(
+                date,
+                text
+            );
+
+            fragment.appendChild(
+                item
             );
 
         }
     );
 
+    diaryList.replaceChildren(
+        fragment
+    );
+}
+
+
+/* =========================================================
+   DIARY COUNT
+========================================================= */
+
+function updateDiaryCount() {
+
+    const element =
+        $("favoriteCount");
+
+    if (element) {
+        element.textContent =
+            currentDiaryEntries.length;
+    }
+}
+
+
+/* =========================================================
+   DAYS COUNT
+========================================================= */
+
+async function updateDaysCount() {
+
+    const element =
+        $("daysCount");
+
+    if (!element || !diaryId) {
+        return;
+    }
+
+    try {
+
+        const diaryRef =
+            doc(
+                db,
+                "diaries",
+                diaryId
+            );
+
+        const snapshot =
+            await getDoc(diaryRef);
+
+        if (!snapshot.exists()) {
+
+            await setDoc(
+                diaryRef,
+                {
+                    code: diaryId,
+                    createdAt:
+                        serverTimestamp()
+                },
+                {
+                    merge: true
+                }
+            );
+
+            element.textContent = "1";
+
+            return;
+        }
+
+        const data =
+            snapshot.data();
+
+        if (!data.createdAt) {
+
+            element.textContent = "1";
+
+            return;
+        }
+
+        const created =
+            data.createdAt.toDate();
+
+        const now =
+            new Date();
+
+        const diff =
+            Math.max(
+                1,
+                Math.floor(
+                    (
+                        now - created
+                    ) /
+                    86400000
+                ) + 1
+            );
+
+        element.textContent =
+            diff;
+
+    } catch (error) {
+
+        console.warn(
+            "Days count:",
+            error
+        );
+
+        element.textContent =
+            "—";
+    }
 }
 
 
@@ -2868,223 +1751,879 @@ function subscribeOtherBattery() {
 
 function setupCallButtons() {
 
-    const audioButton =
-        document.getElementById(
-            "audioCallBtn"
-        );
+    $("audioCallBtn")?.addEventListener(
+        "click",
+        () => startCall("audio")
+    );
 
+    $("videoCallBtn")?.addEventListener(
+        "click",
+        () => startCall("video")
+    );
 
-    const videoButton =
-        document.getElementById(
-            "videoCallBtn"
-        );
+    $("acceptCallBtn")?.addEventListener(
+        "click",
+        acceptIncomingCall
+    );
 
+    $("rejectCallBtn")?.addEventListener(
+        "click",
+        rejectIncomingCall
+    );
 
-    if (audioButton) {
+    $("endCallBtn")?.addEventListener(
+        "click",
+        endActiveCall
+    );
 
-        audioButton.addEventListener(
-            "click",
-            () => {
+    $("toggleMicBtn")?.addEventListener(
+        "click",
+        toggleMicrophone
+    );
 
-                startCallScreen(
-                    "audio"
-                );
-
-            }
-        );
-
-    }
-
-
-    if (videoButton) {
-
-        videoButton.addEventListener(
-            "click",
-            () => {
-
-                startCallScreen(
-                    "video"
-                );
-
-            }
-        );
-
-    }
-
-
-    const endButton =
-        document.getElementById(
-            "endCallBtn"
-        );
-
-
-    if (endButton) {
-
-        endButton.addEventListener(
-            "click",
-            endCallScreen
-        );
-
-    }
-
-
-    const micButton =
-        document.getElementById(
-            "micBtn"
-        );
-
-
-    if (micButton) {
-
-        micButton.addEventListener(
-            "click",
-            toggleMicrophone
-        );
-
-    }
-
-
-    const cameraButton =
-        document.getElementById(
-            "cameraBtn"
-        );
-
-
-    if (cameraButton) {
-
-        cameraButton.addEventListener(
-            "click",
-            toggleCamera
-        );
-
-    }
-
+    $("toggleCameraBtn")?.addEventListener(
+        "click",
+        toggleCamera
+    );
 }
 
 
 /* =========================================================
-   CALL SCREEN
+   START CALL
 ========================================================= */
 
-async function startCallScreen(
-    type
-) {
+async function startCall(type) {
 
-    const screen =
-        document.getElementById(
-            "callScreen"
+    if (!currentUser || !diaryId) {
+        return;
+    }
+
+    if (!partnerUid) {
+
+        showToast(
+            "نفر دوم هنوز وارد دفترچه نشده",
+            "⚠️"
         );
-
-
-    if (!screen) {
 
         return;
-
     }
 
+    if (currentCallId) {
 
-    screen.hidden =
-        false;
-
-
-    const title =
-        document.getElementById(
-            "callTitle"
+        showToast(
+            "در حال حاضر یک تماس فعال است",
+            "⚠️"
         );
 
-
-    const status =
-        document.getElementById(
-            "callStatus"
-        );
-
-
-    if (title) {
-
-        title.textContent =
-            type === "video"
-                ? "تماس تصویری"
-                : "تماس صوتی";
-
+        return;
     }
-
-
-    if (status) {
-
-        status.textContent =
-            "در حال برقراری تماس...";
-
-    }
-
-
-    resetCallTimer();
-
-    startCallTimer();
-
-
-    /*
-       میکروفون / دوربین
-       در صورت اجازه مرورگر
-    */
 
     try {
 
-        localStream =
-            await navigator.mediaDevices.getUserMedia(
-                {
-                    audio:
-                        true,
+        currentCallType = type;
+        currentCallRole = "caller";
 
-                    video:
-                        type === "video"
+        const constraints =
+            type === "video"
+                ? {
+                    audio: true,
+                    video: true
+                }
+                : {
+                    audio: true,
+                    video: false
+                };
+
+        localStream =
+            await navigator.mediaDevices
+                .getUserMedia(
+                    constraints
+                );
+
+        peerConnection =
+            createPeerConnection();
+
+        localStream
+            .getTracks()
+            .forEach(
+                track => {
+
+                    peerConnection.addTrack(
+                        track,
+                        localStream
+                    );
+
                 }
             );
 
-
-        const localVideo =
-            document.getElementById(
-                "localVideo"
+        const callRef =
+            doc(
+                collection(
+                    db,
+                    "diaries",
+                    diaryId,
+                    "calls"
+                )
             );
 
+        currentCallId =
+            callRef.id;
 
-        if (
-            localVideo &&
-            type === "video"
-        ) {
+        const offer =
+            await peerConnection.createOffer();
 
-            localVideo.srcObject =
-                localStream;
+        await peerConnection.setLocalDescription(
+            offer
+        );
 
-            localVideo.style.display =
-                "block";
+        await setDoc(
+            callRef,
+            {
+                callerUid:
+                    currentUser.uid,
 
-        }
+                callerName:
+                    currentName,
 
+                calleeUid:
+                    partnerUid,
 
-        if (status) {
+                type,
 
-            status.textContent =
-                "تماس برقرار شد";
+                offer: {
+                    type: offer.type,
+                    sdp: offer.sdp
+                },
 
-        }
+                status:
+                    "ringing",
+
+                createdAt:
+                    serverTimestamp()
+            }
+        );
+
+        subscribeCallerCandidates(
+            currentCallId
+        );
+
+        subscribeCallAnswer(
+            currentCallId
+        );
+
+        showActiveCall(
+            partnerName,
+            type
+        );
+
+        showToast(
+            "در حال برقراری تماس...",
+            "📞"
+        );
 
     } catch (error) {
 
         console.error(
-            "MEDIA ERROR:",
+            "Start call:",
             error
         );
 
+        await cleanupCall();
 
-        if (status) {
+        showToast(
+            "دسترسی به میکروفون یا دوربین ممکن نبود",
+            "❌"
+        );
+    }
+}
 
-            status.textContent =
-                "دسترسی به میکروفون یا دوربین داده نشد";
 
-        }
+/* =========================================================
+   CREATE PEER CONNECTION
+========================================================= */
 
+function createPeerConnection() {
+
+    const pc =
+        new RTCPeerConnection(
+            rtcConfiguration
+        );
+
+    pc.ontrack =
+        event => {
+
+            if (!remoteStream) {
+                remoteStream =
+                    new MediaStream();
+            }
+
+            event.streams[0]
+                ?.getTracks()
+                .forEach(
+                    track => {
+
+                        remoteStream.addTrack(
+                            track
+                        );
+
+                    }
+                );
+
+            const video =
+                $("remoteVideo");
+
+            if (video) {
+                video.srcObject =
+                    remoteStream;
+            }
+        };
+
+
+    pc.onicecandidate =
+        async event => {
+
+            if (
+                !event.candidate ||
+                !currentCallId
+            ) {
+                return;
+            }
+
+            const collectionName =
+                currentCallRole === "caller"
+                    ? "callerCandidates"
+                    : "calleeCandidates";
+
+            await addDoc(
+                collection(
+                    db,
+                    "diaries",
+                    diaryId,
+                    "calls",
+                    currentCallId,
+                    collectionName
+                ),
+                event.candidate.toJSON()
+            );
+        };
+
+
+    pc.onconnectionstatechange =
+        async () => {
+
+            const state =
+                pc.connectionState;
+
+            console.log(
+                "WebRTC:",
+                state
+            );
+
+            if (
+                state === "connected"
+            ) {
+
+                startCallTimer();
+
+                await updateCallStatus(
+                    "active"
+                );
+            }
+
+            if (
+                state === "failed" ||
+                state === "disconnected" ||
+                state === "closed"
+            ) {
+
+                await cleanupCall();
+            }
+        };
+
+    return pc;
+}
+
+
+/* =========================================================
+   CALLER — ANSWER
+========================================================= */
+
+function subscribeCallAnswer(
+    callId
+) {
+
+    const callRef =
+        doc(
+            db,
+            "diaries",
+            diaryId,
+            "calls",
+            callId
+        );
+
+    unsubscribeIncomingCandidates =
+        onSnapshot(
+            callRef,
+            async snapshot => {
+
+                if (!snapshot.exists()) {
+                    return;
+                }
+
+                const data =
+                    snapshot.data();
+
+                if (
+                    data.answer &&
+                    peerConnection &&
+                    !peerConnection
+                        .currentRemoteDescription
+                ) {
+
+                    await peerConnection
+                        .setRemoteDescription(
+                            new RTCSessionDescription(
+                                data.answer
+                            )
+                        );
+
+                    subscribeCalleeCandidates(
+                        callId
+                    );
+                }
+
+                if (
+                    data.status ===
+                    "rejected"
+                ) {
+
+                    showToast(
+                        "تماس رد شد",
+                        "❌"
+                    );
+
+                    await cleanupCall();
+                }
+
+            }
+        );
+}
+
+
+/* =========================================================
+   CALLER CANDIDATES
+========================================================= */
+
+function subscribeCallerCandidates(
+    callId
+) {
+
+    const candidatesRef =
+        collection(
+            db,
+            "diaries",
+            diaryId,
+            "calls",
+            callId,
+            "calleeCandidates"
+        );
+
+    unsubscribeOutgoingCandidates =
+        onSnapshot(
+            candidatesRef,
+            snapshot => {
+
+                snapshot.docChanges()
+                    .forEach(
+                        async change => {
+
+                            if (
+                                change.type !==
+                                "added"
+                            ) {
+                                return;
+                            }
+
+                            try {
+
+                                await peerConnection
+                                    ?.addIceCandidate(
+                                        new RTCIceCandidate(
+                                            change.doc.data()
+                                        )
+                                    );
+
+                            } catch (error) {
+
+                                console.warn(
+                                    "ICE candidate:",
+                                    error
+                                );
+                            }
+
+                        }
+                    );
+
+            }
+        );
+}
+
+
+/* =========================================================
+   CALLEE CANDIDATES
+========================================================= */
+
+function subscribeCalleeCandidates(
+    callId
+) {
+
+    const candidatesRef =
+        collection(
+            db,
+            "diaries",
+            diaryId,
+            "calls",
+            callId,
+            "callerCandidates"
+        );
+
+    unsubscribeIncomingCandidates =
+        onSnapshot(
+            candidatesRef,
+            snapshot => {
+
+                snapshot.docChanges()
+                    .forEach(
+                        async change => {
+
+                            if (
+                                change.type !==
+                                "added"
+                            ) {
+                                return;
+                            }
+
+                            try {
+
+                                await peerConnection
+                                    ?.addIceCandidate(
+                                        new RTCIceCandidate(
+                                            change.doc.data()
+                                        )
+                                    );
+
+                            } catch (error) {
+
+                                console.warn(
+                                    "ICE candidate:",
+                                    error
+                                );
+                            }
+
+                        }
+                    );
+
+            }
+        );
+}
+
+
+/* =========================================================
+   SUBSCRIBE INCOMING CALLS
+========================================================= */
+
+function subscribeIncomingCalls() {
+
+    if (!diaryId || !currentUser) {
+        return;
     }
 
+    if (unsubscribeCalls) {
+        unsubscribeCalls();
+    }
+
+    const callsRef =
+        collection(
+            db,
+            "diaries",
+            diaryId,
+            "calls"
+        );
+
+    unsubscribeCalls =
+        onSnapshot(
+            callsRef,
+            snapshot => {
+
+                snapshot.docChanges()
+                    .forEach(
+                        change => {
+
+                            const data =
+                                change.doc.data();
+
+                            if (
+                                change.type !==
+                                "added"
+                            ) {
+                                return;
+                            }
+
+                            if (
+                                data.calleeUid !==
+                                currentUser.uid
+                            ) {
+                                return;
+                            }
+
+                            if (
+                                data.status !==
+                                "ringing"
+                            ) {
+                                return;
+                            }
+
+                            if (
+                                currentCallId
+                            ) {
+                                return;
+                            }
+
+                            showIncomingCall(
+                                change.doc.id,
+                                data
+                            );
+
+                        }
+                    );
+
+            },
+            error => {
+
+                console.error(
+                    "Incoming calls:",
+                    error
+                );
+            }
+        );
+}
+
+
+/* =========================================================
+   SHOW INCOMING CALL
+========================================================= */
+
+function showIncomingCall(
+    callId,
+    data
+) {
+
+    currentCallId =
+        callId;
+
+    currentCallType =
+        data.type;
+
+    currentCallRole =
+        "callee";
+
+    const modal =
+        $("incomingCall");
+
+    const caller =
+        $("incomingCallerName");
+
+    const type =
+        $("incomingCallType");
+
+    if (caller) {
+        caller.textContent =
+            data.callerName ||
+            "نفر دوم";
+    }
+
+    if (type) {
+        type.textContent =
+            data.type === "video"
+                ? "تماس تصویری"
+                : "تماس صوتی";
+    }
+
+    if (modal) {
+        modal.hidden = false;
+    }
+}
+
+
+/* =========================================================
+   ACCEPT CALL
+========================================================= */
+
+async function acceptIncomingCall() {
+
+    if (
+        !currentCallId ||
+        !currentUser
+    ) {
+        return;
+    }
+
+    try {
+
+        const callRef =
+            doc(
+                db,
+                "diaries",
+                diaryId,
+                "calls",
+                currentCallId
+            );
+
+        const snapshot =
+            await getDoc(callRef);
+
+        if (!snapshot.exists()) {
+            throw new Error(
+                "CALL_NOT_FOUND"
+            );
+        }
+
+        const data =
+            snapshot.data();
+
+        const constraints =
+            data.type === "video"
+                ? {
+                    audio: true,
+                    video: true
+                }
+                : {
+                    audio: true,
+                    video: false
+                };
+
+        localStream =
+            await navigator.mediaDevices
+                .getUserMedia(
+                    constraints
+                );
+
+        peerConnection =
+            createPeerConnection();
+
+        localStream
+            .getTracks()
+            .forEach(
+                track => {
+
+                    peerConnection.addTrack(
+                        track,
+                        localStream
+                    );
+
+                }
+            );
+
+        await peerConnection
+            .setRemoteDescription(
+                new RTCSessionDescription(
+                    data.offer
+                )
+            );
+
+        const answer =
+            await peerConnection
+                .createAnswer();
+
+        await peerConnection
+            .setLocalDescription(
+                answer
+            );
+
+        await updateDoc(
+            callRef,
+            {
+                answer: {
+                    type: answer.type,
+                    sdp: answer.sdp
+                },
+
+                status:
+                    "accepted"
+            }
+        );
+
+        subscribeCallerCandidates(
+            currentCallId
+        );
+
+        hideIncomingCall();
+
+        showActiveCall(
+            data.callerName ||
+            "نفر دوم",
+            data.type
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Accept call:",
+            error
+        );
+
+        await cleanupCall();
+
+        showToast(
+            "برقراری تماس ممکن نشد",
+            "❌"
+        );
+    }
+}
+
+
+/* =========================================================
+   REJECT CALL
+========================================================= */
+
+async function rejectIncomingCall() {
+
+    if (!currentCallId) {
+        hideIncomingCall();
+        return;
+    }
+
+    try {
+
+        await updateDoc(
+            doc(
+                db,
+                "diaries",
+                diaryId,
+                "calls",
+                currentCallId
+            ),
+            {
+                status:
+                    "rejected"
+            }
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Reject call:",
+            error
+        );
+
+    } finally {
+
+        hideIncomingCall();
+
+        currentCallId = null;
+        currentCallType = null;
+        currentCallRole = null;
+    }
+}
+
+
+/* =========================================================
+   HIDE INCOMING CALL
+========================================================= */
+
+function hideIncomingCall() {
+
+    const modal =
+        $("incomingCall");
+
+    if (modal) {
+        modal.hidden = true;
+    }
+}
+
+
+/* =========================================================
+   UPDATE CALL STATUS
+========================================================= */
+
+async function updateCallStatus(
+    status
+) {
+
+    if (
+        !currentCallId ||
+        !diaryId
+    ) {
+        return;
+    }
+
+    try {
+
+        await updateDoc(
+            doc(
+                db,
+                "diaries",
+                diaryId,
+                "calls",
+                currentCallId
+            ),
+            {
+                status
+            }
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Call status:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   SHOW ACTIVE CALL
+========================================================= */
+
+function showActiveCall(
+    name,
+    type
+) {
+
+    const activeCall =
+        $("activeCall");
+
+    const nameElement =
+        $("activeCallName");
+
+    const localVideo =
+        $("localVideo");
+
+    if (nameElement) {
+        nameElement.textContent =
+            name || "نفر دوم";
+    }
+
+    if (localVideo && localStream) {
+
+        localVideo.srcObject =
+            localStream;
+
+        localVideo.style.display =
+            type === "video"
+                ? "block"
+                : "none";
+    }
+
+    if (activeCall) {
+        activeCall.hidden = false;
+    }
+
+    callStartedAt =
+        Date.now();
+
+    startCallTimer();
 }
 
 
@@ -3094,202 +2633,123 @@ async function startCallScreen(
 
 function startCallTimer() {
 
-    callSeconds =
-        0;
-
-
     clearInterval(
         callTimerInterval
     );
 
+    callStartedAt =
+        callStartedAt ||
+        Date.now();
 
     callTimerInterval =
         setInterval(
             () => {
 
-                callSeconds++;
+                const element =
+                    $("activeCallTimer");
 
-                updateCallTimer();
+                if (!element) {
+                    return;
+                }
+
+                const seconds =
+                    Math.floor(
+                        (
+                            Date.now() -
+                            callStartedAt
+                        ) / 1000
+                    );
+
+                const minutes =
+                    Math.floor(
+                        seconds / 60
+                    );
+
+                const remaining =
+                    seconds % 60;
+
+                element.textContent =
+                    `${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}`;
 
             },
             1000
         );
-
 }
 
 
 /* =========================================================
-   RESET CALL TIMER
-========================================================= */
-
-function resetCallTimer() {
-
-    clearInterval(
-        callTimerInterval
-    );
-
-
-    callSeconds =
-        0;
-
-
-    updateCallTimer();
-
-}
-
-
-/* =========================================================
-   UPDATE CALL TIMER
-========================================================= */
-
-function updateCallTimer() {
-
-    const timer =
-        document.getElementById(
-            "callTimer"
-        );
-
-
-    if (!timer) {
-
-        return;
-
-    }
-
-
-    const minutes =
-        Math.floor(
-            callSeconds / 60
-        )
-            .toString()
-            .padStart(
-                2,
-                "0"
-            );
-
-
-    const seconds =
-        (
-            callSeconds % 60
-        )
-            .toString()
-            .padStart(
-                2,
-                "0"
-            );
-
-
-    timer.textContent =
-        `${minutes}:${seconds}`;
-
-}
-
-
-/* =========================================================
-   MICROPHONE
+   TOGGLE MICROPHONE
 ========================================================= */
 
 function toggleMicrophone() {
 
     if (!localStream) {
-
         return;
-
     }
 
+    const track =
+        localStream.getAudioTracks()[0];
 
-    const tracks =
-        localStream.getAudioTracks();
-
-
-    if (!tracks.length) {
-
+    if (!track) {
         return;
-
     }
 
-
-    tracks.forEach(
-        track => {
-
-            track.enabled =
-                !track.enabled;
-
-        }
-    );
-
+    track.enabled =
+        !track.enabled;
 
     const button =
-        document.getElementById(
-            "micBtn"
-        );
-
+        $("toggleMicBtn");
 
     if (button) {
 
+        button.classList.toggle(
+            "active",
+            track.enabled
+        );
+
         button.textContent =
-            tracks[0].enabled
-                ? "🎤"
+            track.enabled
+                ? "🎙️"
                 : "🔇";
-
     }
-
 }
 
 
 /* =========================================================
-   CAMERA
+   TOGGLE CAMERA
 ========================================================= */
 
 function toggleCamera() {
 
     if (!localStream) {
-
         return;
-
     }
 
+    const track =
+        localStream.getVideoTracks()[0];
 
-    const tracks =
-        localStream.getVideoTracks();
-
-
-    if (!tracks.length) {
-
-        showToast(
-            "این تماس دوربین ندارد."
-        );
-
+    if (!track) {
         return;
-
     }
 
-
-    tracks.forEach(
-        track => {
-
-            track.enabled =
-                !track.enabled;
-
-        }
-    );
-
+    track.enabled =
+        !track.enabled;
 
     const button =
-        document.getElementById(
-            "cameraBtn"
-        );
-
+        $("toggleCameraBtn");
 
     if (button) {
 
+        button.classList.toggle(
+            "active",
+            track.enabled
+        );
+
         button.textContent =
-            tracks[0].enabled
+            track.enabled
                 ? "📹"
                 : "🚫";
-
     }
-
 }
 
 
@@ -3297,262 +2757,289 @@ function toggleCamera() {
    END CALL
 ========================================================= */
 
-function endCallScreen() {
+async function endActiveCall() {
+
+    await updateCallStatus(
+        "ended"
+    );
+
+    await cleanupCall();
+}
+
+
+/* =========================================================
+   CLEANUP CALL
+========================================================= */
+
+async function cleanupCall() {
 
     clearInterval(
         callTimerInterval
     );
 
+    callTimerInterval = null;
+
+    if (unsubscribeIncomingCandidates) {
+        unsubscribeIncomingCandidates();
+        unsubscribeIncomingCandidates = null;
+    }
+
+    if (unsubscribeOutgoingCandidates) {
+        unsubscribeOutgoingCandidates();
+        unsubscribeOutgoingCandidates = null;
+    }
+
+    if (peerConnection) {
+
+        try {
+            peerConnection.close();
+        } catch (error) {
+            console.warn(error);
+        }
+
+        peerConnection = null;
+    }
 
     if (localStream) {
 
         localStream
             .getTracks()
             .forEach(
-                track => {
-
-                    track.stop();
-
-                }
+                track => track.stop()
             );
 
-        localStream =
-            null;
-
+        localStream = null;
     }
 
+    remoteStream = null;
 
     const localVideo =
-        document.getElementById(
-            "localVideo"
-        );
-
-
-    if (localVideo) {
-
-        localVideo.srcObject =
-            null;
-
-        localVideo.style.display =
-            "none";
-
-    }
-
+        $("localVideo");
 
     const remoteVideo =
-        document.getElementById(
-            "remoteVideo"
-        );
+        $("remoteVideo");
 
+    if (localVideo) {
+        localVideo.srcObject = null;
+    }
 
     if (remoteVideo) {
-
-        remoteVideo.srcObject =
-            null;
-
+        remoteVideo.srcObject = null;
     }
 
+    const activeCall =
+        $("activeCall");
 
-    const screen =
-        document.getElementById(
-            "callScreen"
-        );
-
-
-    if (screen) {
-
-        screen.hidden =
-            true;
-
+    if (activeCall) {
+        activeCall.hidden = true;
     }
 
+    hideIncomingCall();
 
-    resetCallTimer();
+    currentCallId = null;
+    currentCallType = null;
+    currentCallRole = null;
 
+    callStartedAt = null;
 }
 
 
 /* =========================================================
-   TOAST
+   REALTIME LISTENERS CLEANUP
 ========================================================= */
 
-let toastTimer = null;
+function stopRealtimeListeners() {
 
-
-function showToast(
-    message
-) {
-
-    if (!toastElement) {
-
-        return;
-
+    if (unsubscribeMessages) {
+        unsubscribeMessages();
+        unsubscribeMessages = null;
     }
 
+    if (unsubscribeDiary) {
+        unsubscribeDiary();
+        unsubscribeDiary = null;
+    }
 
-    toastElement.textContent =
-        message;
+    if (unsubscribeMembers) {
+        unsubscribeMembers();
+        unsubscribeMembers = null;
+    }
+
+    if (unsubscribeCalls) {
+        unsubscribeCalls();
+        unsubscribeCalls = null;
+    }
+}
 
 
-    toastElement.classList.add(
-        "show"
+/* =========================================================
+   SETUP EVERYTHING
+========================================================= */
+
+let setupFinished = false;
+
+async function setupEverything() {
+
+    if (!currentUser || !diaryId) {
+        return;
+    }
+
+    setupNavigation();
+    setupChat();
+
+    subscribeMessages();
+    subscribeDiary();
+    subscribeMembers();
+    subscribeIncomingCalls();
+
+    setupPresence();
+    setupBattery();
+
+    await updateDaysCount();
+
+    setupFinished = true;
+}
+
+
+/* =========================================================
+   EVENT LISTENERS
+========================================================= */
+
+function setupGlobalEvents() {
+
+    loginBtn?.addEventListener(
+        "click",
+        login
     );
 
+    diaryCodeInput?.addEventListener(
+        "keydown",
+        event => {
 
-    clearTimeout(
-        toastTimer
+            if (
+                event.key === "Enter"
+            ) {
+                event.preventDefault();
+                login();
+            }
+
+        }
     );
 
+    userNameInput?.addEventListener(
+        "keydown",
+        event => {
 
-    toastTimer =
-        setTimeout(
-            () => {
+            if (
+                event.key === "Enter"
+            ) {
+                event.preventDefault();
+                login();
+            }
 
-                toastElement.classList.remove(
-                    "show"
-                );
+        }
+    );
 
-            },
-            2500
+    $("logoutBtn")?.addEventListener(
+        "click",
+        logout
+    );
+
+    $("themeToggle")?.addEventListener(
+        "click",
+        toggleTheme
+    );
+
+    $("themeToggleSettings")
+        ?.addEventListener(
+            "click",
+            toggleTheme
         );
 
+    saveDiaryBtn?.addEventListener(
+        "click",
+        saveDiary
+    );
+
+    setupCallButtons();
 }
 
 
 /* =========================================================
-   LOGIN ERROR
+   AUTH STATE
 ========================================================= */
 
-function showLoginError(
-    message
-) {
+onAuthStateChanged(
+    auth,
+    async user => {
 
-    if (!loginError) {
+        currentUser = user;
 
-        return;
+        if (user) {
+
+            await restoreSession();
+
+        }
 
     }
-
-
-    loginError.textContent =
-        message;
-
-}
+);
 
 
 /* =========================================================
-   CLEAR LOGIN ERROR
+   INITIALIZATION
 ========================================================= */
 
-function clearLoginError() {
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
-    if (loginError) {
+        loadTheme();
 
-        loginError.textContent =
-            "";
+        setupGlobalEvents();
+
+        if (diaryCodeInput) {
+            diaryCodeInput.readOnly =
+                false;
+        }
 
     }
-
-}
+);
 
 
 /* =========================================================
-   FIREBASE ERROR MESSAGE
-========================================================= */
-
-function getFirebaseErrorMessage(
-    error
-) {
-
-    const code =
-        error?.code || "";
-
-
-    if (
-        code.includes(
-            "auth/network-request-failed"
-        )
-    ) {
-
-        return "اتصال اینترنت را بررسی کنید.";
-
-    }
-
-
-    if (
-        code.includes(
-            "permission-denied"
-        )
-    ) {
-
-        return "دسترسی Firebase رد شد. قوانین Firebase را بررسی کنید.";
-
-    }
-
-
-    if (
-        code.includes(
-            "unauthorized"
-        )
-    ) {
-
-        return "دسترسی به دفترچه امکان‌پذیر نیست.";
-
-    }
-
-
-    return "ورود انجام نشد. دوباره تلاش کنید.";
-
-}
-
-
-/* =========================================================
-   PAGE VISIBILITY HELPER
-========================================================= */
-
-function isLoggedIn() {
-
-    return !!currentUser;
-
-}
-
-
-/* =========================================================
-   PREVENT EMPTY SUBMIT
+   PREVENT ACCIDENTAL DOUBLE SUBMIT
 ========================================================= */
 
 window.addEventListener(
     "beforeunload",
     () => {
 
-        if (
-            currentUser &&
-            diaryCode
-        ) {
+        try {
 
-            const reference =
-                ref(
-                    realtimeDB,
-                    `diaries/${encodeURIComponent(diaryCode)}/presence/${currentUser.uid}`
+            if (
+                currentUser &&
+                diaryId
+            ) {
+
+                const presenceRef =
+                    ref(
+                        rtdb,
+                        `diaries/${diaryId}/presence/${currentUser.uid}`
+                    );
+
+                set(
+                    presenceRef,
+                    {
+                        online: false,
+                        lastSeen:
+                            rtdbTimestamp()
+                    }
                 );
 
+            }
 
-            set(
-                reference,
-                {
-                    online:
-                        false,
-
-                    name:
-                        currentUserName,
-
-                    updatedAt:
-                        Date.now()
-                }
-            ).catch(
-                () => {}
-            );
-
+        } catch (error) {
+            console.warn(error);
         }
 
     }
