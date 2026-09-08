@@ -1,1607 +1,2361 @@
 /* =========================================================
-   SHARED DIARY
-   Firebase + Firestore + Realtime Database
+   دفترچه خاطرات مشترک
+   Firebase + Chat + Battery + WebRTC
    ========================================================= */
 
 import {
-    initializeApp
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 
 import {
-    getAuth,
-    signInAnonymously,
-    onAuthStateChanged,
-    signOut
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
 import {
-    getFirestore,
-    collection,
-    doc,
-    addDoc,
-    setDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    query,
-    orderBy,
-    onSnapshot,
-    serverTimestamp,
-    limit
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  addDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 import {
-    getDatabase,
-    ref,
-    set,
-    onValue,
-    onDisconnect
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+  getDatabase,
+  ref,
+  set,
+  onValue,
+  onDisconnect
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
 
 /* =========================================================
-   CONFIG
+   Firebase
    ========================================================= */
-
-/*
-   کد دفترچه فقط اینجاست.
-   در index.html هیچ فیلدی برای نمایش آن وجود ندارد.
-*/
-
-const DIARY_CODE = "asna&amir8890";
-
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBvrnbdz69356LOv3LwY-dFlIVZG8zdQ_4",
-    authDomain: "notebock-d4ec7.firebaseapp.com",
-    projectId: "notebock-d4ec7",
-    storageBucket: "notebock-d4ec7.firebasestorage.app",
-    messagingSenderId: "931492123706",
-    appId: "1:931492123706:web:8ea75df636cc7118de9103",
-    measurementId: "G-7VWTN1D47C",
-    databaseURL: "https://notebock-d4ec7-default-rtdb.firebaseio.com/"
+  apiKey: "AIzaSyBvrnbdz69356LOv3LwY-dFlIVZG8zdQ_4",
+  authDomain: "notebock-d4ec7.firebaseapp.com",
+  projectId: "notebock-d4ec7",
+  storageBucket: "notebock-d4ec7.firebasestorage.app",
+  messagingSenderId: "931492123706",
+  appId: "1:931492123706:web:8ea75df636cc7118de9103",
+  measurementId: "G-7VWTN1D47C",
+  databaseURL: "https://notebock-d4ec7-default-rtdb.firebaseio.com/"
 };
 
-
-/* =========================================================
-   FIREBASE
-   ========================================================= */
-
 const app = initializeApp(firebaseConfig);
-
 const auth = getAuth(app);
-
 const db = getFirestore(app);
-
-const realtimeDB = getDatabase(app);
+const rtdb = getDatabase(app);
 
 
 /* =========================================================
-   STATE
+   تنظیمات اصلی
    ========================================================= */
+
+// این کد عمداً در HTML نمایش داده نمی‌شود.
+const FIXED_DIARY_CODE = "asna&amir8890";
+
+let diaryId = FIXED_DIARY_CODE;
 
 let currentUser = null;
-
-let currentName = "";
-
-let diaryId = DIARY_CODE;
-
+let currentUserName = "";
+let currentMember = null;
 let otherMember = null;
 
-let members = [];
-
-let unsubscribeMessages = null;
-
 let unsubscribeMembers = null;
-
+let unsubscribeMessages = null;
+let unsubscribeCall = null;
+let unsubscribeIncoming = null;
 let unsubscribeOtherPresence = null;
-
 let unsubscribeOtherBattery = null;
 
-let batteryObject = null;
+let currentCallId = null;
+let currentCallType = null;
+let currentCallDoc = null;
+
+let peerConnection = null;
+let localStream = null;
+let remoteStream = null;
+
+let callTimerInterval = null;
+let callStartedAt = null;
+
+let microphoneEnabled = true;
+let cameraEnabled = true;
+let speakerEnabled = true;
+
+let pendingIncomingCall = null;
 
 
 /* =========================================================
-   HELPERS
+   عناصر DOM
    ========================================================= */
 
 const $ = id => document.getElementById(id);
 
+const loginScreen = $("loginScreen");
+const appScreen = $("appScreen");
 
-function escapeHTML(text) {
+const userNameInput = $("userName");
+const loginBtn = $("loginBtn");
 
-    const div = document.createElement("div");
+const themeToggle = $("themeToggle");
 
-    div.textContent = text ?? "";
+const homePage = $("homePage");
+const chatPage = $("chatPage");
+const settingsPage = $("settingsPage");
 
-    return div.innerHTML;
+const myNameEl = $("myName");
+const myBatteryFill = $("myBatteryFill");
+const myBatteryText = $("myBatteryText");
+const myCharging = $("myCharging");
+
+const otherNameEl = $("otherName");
+const otherBatteryFill = $("otherBatteryFill");
+const otherBatteryText = $("otherBatteryText");
+const otherCharging = $("otherCharging");
+
+const memoryCount = $("memoryCount");
+const favoriteCount = $("favoriteCount");
+const daysCount = $("daysCount");
+
+const chatPartnerName = $("chatPartnerName");
+const chatOnlineStatus = $("chatOnlineStatus");
+
+const messagesContainer = $("messages");
+const messageInput = $("messageInput");
+const sendMessageBtn = $("sendMessageBtn");
+
+const audioCallBtn = $("audioCallBtn");
+const videoCallBtn = $("videoCallBtn");
+
+const settingsName = $("settingsName");
+const darkModeToggle = $("darkModeToggle");
+const logoutBtn = $("logoutBtn");
+
+const callScreen = $("callScreen");
+const remoteVideo = $("remoteVideo");
+const localVideo = $("localVideo");
+const remoteAudio = $("remoteAudio");
+
+const callTitle = $("callTitle");
+const callStatus = $("callStatus");
+const callTimer = $("callTimer");
+
+const micBtn = $("micBtn");
+const cameraBtn = $("cameraBtn");
+const speakerBtn = $("speakerBtn");
+const endCallBtn = $("endCallBtn");
+
+const incomingCallModal = $("incomingCallModal");
+const incomingCallerName = $("incomingCallerName");
+const incomingCallType = $("incomingCallType");
+const rejectCallBtn = $("rejectCallBtn");
+const acceptCallBtn = $("acceptCallBtn");
+
+const toast = $("toast");
+const toastText = $("toastText");
+
+
+/* =========================================================
+   ابزارهای عمومی
+   ========================================================= */
+
+function showToast(message) {
+  if (!toast || !toastText) return;
+
+  toastText.textContent = message;
+  toast.classList.add("show");
+
+  clearTimeout(showToast.timer);
+
+  showToast.timer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2800);
 }
 
 
-function showToast(message) {
-
-    const toast = $("toast");
-
-    const text = $("toastText");
-
-    if (!toast || !text) return;
-
-    text.textContent = message;
-
-    toast.classList.add("show");
-
-    clearTimeout(showToast.timer);
-
-    showToast.timer = setTimeout(() => {
-
-        toast.classList.remove("show");
-
-    }, 2800);
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 
 function formatTime(timestamp) {
+  if (!timestamp) return "";
 
-    if (!timestamp) return "";
+  try {
+    const date = timestamp.toDate
+      ? timestamp.toDate()
+      : new Date(timestamp);
 
-    try {
-
-        const date =
-            timestamp.toDate
-                ? timestamp.toDate()
-                : new Date(timestamp);
-
-        return date.toLocaleTimeString("fa-IR", {
-            hour: "2-digit",
-            minute: "2-digit"
-        });
-
-    } catch {
-
-        return "";
-
-    }
+    return date.toLocaleTimeString("fa-IR", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  } catch {
+    return "";
+  }
 }
 
 
 function formatDate(timestamp) {
+  if (!timestamp) return "";
 
-    if (!timestamp) return "";
+  try {
+    const date = timestamp.toDate
+      ? timestamp.toDate()
+      : new Date(timestamp);
 
-    try {
-
-        const date =
-            timestamp.toDate
-                ? timestamp.toDate()
-                : new Date(timestamp);
-
-        return date.toLocaleDateString("fa-IR");
-
-    } catch {
-
-        return "";
-
-    }
+    return date.toLocaleDateString("fa-IR");
+  } catch {
+    return "";
+  }
 }
 
 
 /* =========================================================
-   THEME
+   Theme
    ========================================================= */
 
 function setupTheme() {
+  const savedTheme = localStorage.getItem("diary-theme");
 
-    const savedTheme =
-        localStorage.getItem("diary-theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark");
+  }
 
-    if (savedTheme === "dark") {
+  if (darkModeToggle) {
+    darkModeToggle.checked =
+      document.body.classList.contains("dark");
+  }
 
-        document.body.classList.add("dark");
-
-    }
-
-    updateThemeButtons();
-
-    $("themeToggle")?.addEventListener(
-        "click",
-        toggleTheme
-    );
-
-    $("darkModeToggle")?.addEventListener(
-        "change",
-        event => {
-
-            if (event.target.checked) {
-
-                document.body.classList.add("dark");
-
-                localStorage.setItem(
-                    "diary-theme",
-                    "dark"
-                );
-
-            } else {
-
-                document.body.classList.remove("dark");
-
-                localStorage.setItem(
-                    "diary-theme",
-                    "light"
-                );
-
-            }
-
-            updateThemeButtons();
-
-        }
-    );
-}
-
-
-function toggleTheme() {
-
+  themeToggle?.addEventListener("click", () => {
     document.body.classList.toggle("dark");
 
     const isDark =
-        document.body.classList.contains("dark");
+      document.body.classList.contains("dark");
 
     localStorage.setItem(
-        "diary-theme",
-        isDark ? "dark" : "light"
+      "diary-theme",
+      isDark ? "dark" : "light"
     );
 
-    updateThemeButtons();
-}
-
-
-function updateThemeButtons() {
-
-    const isDark =
-        document.body.classList.contains("dark");
-
-    if ($("themeToggle")) {
-
-        $("themeToggle").textContent =
-            isDark ? "☀️" : "🌙";
-
+    if (darkModeToggle) {
+      darkModeToggle.checked = isDark;
     }
+  });
 
-    if ($("darkModeToggle")) {
+  darkModeToggle?.addEventListener("change", () => {
+    document.body.classList.toggle(
+      "dark",
+      darkModeToggle.checked
+    );
 
-        $("darkModeToggle").checked = isDark;
-
-    }
+    localStorage.setItem(
+      "diary-theme",
+      darkModeToggle.checked ? "dark" : "light"
+    );
+  });
 }
 
 
 /* =========================================================
-   NAVIGATION
+   Navigation
    ========================================================= */
 
 function setupNavigation() {
-
-    document.querySelectorAll("[data-page]")
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    const pageId =
-                        button.dataset.page;
-
-                    openPage(pageId);
-
-                }
-            );
-
-        });
-
-}
-
-
-function openPage(pageId) {
-
-    document.querySelectorAll(".page")
-        .forEach(page => {
-
-            page.classList.remove("active");
-
-        });
-
-
-    const target =
-        $(pageId);
-
-    if (target) {
-
-        target.classList.add("active");
-
-    }
-
-
-    document.querySelectorAll(".nav-btn")
-        .forEach(button => {
-
-            button.classList.toggle(
-                "active",
-                button.dataset.page === pageId
-            );
-
-        });
-
-}
-
-
-/* =========================================================
-   LOGIN
-   ========================================================= */
-
-async function login() {
-
-    const nameInput =
-        $("userName");
-
-    const name =
-        nameInput.value.trim();
-
-    if (!name) {
-
-        showToast(
-            "لطفاً نام خودتان را وارد کنید."
-        );
-
-        nameInput.focus();
-
-        return;
-
-    }
-
-
-    if (name.length < 2) {
-
-        showToast(
-            "نام واردشده خیلی کوتاه است."
-        );
-
-        return;
-
-    }
-
-
-    const loginButton =
-        $("loginBtn");
-
-    loginButton.disabled = true;
-
-    loginButton.innerHTML =
-        "در حال ورود...";
-
-
-    try {
-
-        /*
-          Anonymous Authentication
-        */
-
-        if (!auth.currentUser) {
-
-            await signInAnonymously(auth);
-
-        }
-
-
-        currentUser =
-            auth.currentUser;
-
-
-        currentName =
-            name;
-
-
-        localStorage.setItem(
-            "diary-name",
-            currentName
-        );
-
-
-        /*
-          عضو فعلی
-        */
-
-        const memberRef =
-            doc(
-                db,
-                "diaries",
-                diaryId,
-                "members",
-                currentUser.uid
-            );
-
-
-        let memberSnapshot;
-
-
-        try {
-
-            memberSnapshot =
-                await getDoc(memberRef);
-
-        } catch (error) {
-
-            /*
-              اگر اولین ورود باشد و Rule اجازه read
-              قبل از عضویت ندهد، مستقیم create می‌کنیم.
-            */
-
-            if (
-                error.code !==
-                "permission-denied"
-            ) {
-
-                throw error;
-
-            }
-
-            memberSnapshot = null;
-
-        }
-
-
-        if (!memberSnapshot?.exists()) {
-
-            await setDoc(
-                memberRef,
-                {
-                    uid: currentUser.uid,
-                    name: currentName,
-                    joinedAt: serverTimestamp(),
-                    lastSeen: serverTimestamp()
-                }
-            );
-
-        } else {
-
-            await updateDoc(
-                memberRef,
-                {
-                    name: currentName,
-                    lastSeen: serverTimestamp()
-                }
-            );
-
-        }
-
-
-        localStorage.setItem(
-            "diary-logged-in",
-            "true"
-        );
-
-
-        showApp();
-
-
-        startServices();
-
-
-        showToast(
-            "خوش آمدی ❤️"
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Login error:",
-            error
-        );
-
-
-        showToast(
-            firebaseErrorMessage(error)
-        );
-
-    } finally {
-
-        loginButton.disabled = false;
-
-        loginButton.innerHTML =
-            "<span>ورود به دفترچه</span><span>✨</span>";
-
-    }
-
-}
-
-
-/* =========================================================
-   FIREBASE ERROR
-   ========================================================= */
-
-function firebaseErrorMessage(error) {
-
-    if (!error) {
-
-        return "یک خطای ناشناخته رخ داد.";
-
-    }
-
-
-    const code =
-        error.code || "";
-
-
-    if (
-        code.includes("permission-denied")
-    ) {
-
-        return "دسترسی به دفترچه امکان‌پذیر نیست.";
-
-    }
-
-
-    if (
-        code.includes("network")
-    ) {
-
-        return "اتصال اینترنت را بررسی کنید.";
-
-    }
-
-
-    if (
-        code.includes("auth/operation-not-allowed")
-    ) {
-
-        return "Anonymous Authentication در Firebase فعال نیست.";
-
-    }
-
-
-    if (
-        code.includes("auth/network-request-failed")
-    ) {
-
-        return "ارتباط با Firebase برقرار نشد.";
-
-    }
-
-
-    return (
-        error.message ||
-        "خطایی رخ داد."
-    );
-
-}
-
-
-/* =========================================================
-   AUTO LOGIN
-   ========================================================= */
-
-async function restoreSession() {
-
-    const savedName =
-        localStorage.getItem("diary-name");
-
-    const loggedIn =
-        localStorage.getItem(
-            "diary-logged-in"
-        );
-
-
-    if (!savedName || loggedIn !== "true") {
-
-        return;
-
-    }
-
-
-    $("userName").value =
-        savedName;
-
-
-    try {
-
-        if (!auth.currentUser) {
-
-            await signInAnonymously(auth);
-
-        }
-
-
-        currentUser =
-            auth.currentUser;
-
-        currentName =
-            savedName;
-
-
-        const memberRef =
-            doc(
-                db,
-                "diaries",
-                diaryId,
-                "members",
-                currentUser.uid
-            );
-
-
-        await setDoc(
-            memberRef,
-            {
-                uid: currentUser.uid,
-                name: currentName,
-                lastSeen: serverTimestamp()
-            },
-            {
-                merge: true
-            }
-        );
-
-
-        showApp();
-
-        startServices();
-
-
-    } catch (error) {
-
-        console.error(error);
-
-        localStorage.removeItem(
-            "diary-logged-in"
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   SHOW APP
-   ========================================================= */
-
-function showApp() {
-
-    $("loginScreen")
-        .classList.add("hidden");
-
-    $("appScreen")
-        .classList.remove("hidden");
-
-
-    $("myName").textContent =
-        currentName;
-
-    $("settingsName").textContent =
-        currentName;
-
-}
-
-
-/* =========================================================
-   MEMBERS
-   ========================================================= */
-
-function subscribeMembers() {
-
-    if (unsubscribeMembers) {
-
-        unsubscribeMembers();
-
-    }
-
-
-    const membersRef =
-        collection(
-            db,
-            "diaries",
-            diaryId,
-            "members"
-        );
-
-
-    unsubscribeMembers =
-        onSnapshot(
-            membersRef,
-            snapshot => {
-
-                members =
-                    snapshot.docs.map(
-                        item => ({
-                            id: item.id,
-                            ...item.data()
-                        })
-                    );
-
-
-                otherMember =
-                    members.find(
-                        member =>
-                            member.uid !==
-                            currentUser.uid
-                    ) || null;
-
-
-                if (otherMember) {
-
-                    $("otherName").textContent =
-                        otherMember.name;
-
-                    $("chatPartnerName").textContent =
-                        otherMember.name;
-
-
-                    subscribeOtherPresence();
-
-                    updateOnlineStatus();
-
-                } else {
-
-                    $("otherName").textContent =
-                        "نفر دیگر";
-
-                    $("chatPartnerName").textContent =
-                        "نفر دیگر";
-
-                    $("chatOnlineStatus").textContent =
-                        "منتظر اتصال نفر دیگر";
-
-                }
-
-
-                updateStats();
-
-            },
-            error => {
-
-                console.error(
-                    "Members:",
-                    error
-                );
-
-            }
-        );
-
-}
-
-
-/* =========================================================
-   MESSAGES
-   ========================================================= */
-
-function subscribeMessages() {
-
-    if (unsubscribeMessages) {
-
-        unsubscribeMessages();
-
-    }
-
-
-    const messagesRef =
-        collection(
-            db,
-            "diaries",
-            diaryId,
-            "messages"
-        );
-
-
-    const messagesQuery =
-        query(
-            messagesRef,
-            orderBy(
-                "createdAt",
-                "asc"
-            )
-        );
-
-
-    unsubscribeMessages =
-        onSnapshot(
-            messagesQuery,
-            snapshot => {
-
-                renderMessages(
-                    snapshot.docs
-                );
-
-                updateStats(
-                    snapshot.docs
-                );
-
-            },
-            error => {
-
-                console.error(
-                    "Messages:",
-                    error
-                );
-
-                showToast(
-                    "دریافت پیام‌ها با مشکل مواجه شد."
-                );
-
-            }
-        );
-
-}
-
-
-/* =========================================================
-   RENDER MESSAGES
-   ========================================================= */
-
-function renderMessages(docs) {
-
-    const container =
-        $("messages");
-
-    if (!container) return;
-
-
-    if (!docs.length) {
-
-        container.innerHTML = `
-            <div class="empty-chat">
-                <div>💌</div>
-                <h3>هنوز پیامی ندارید</h3>
-                <p>اولین پیام را شما بفرستید.</p>
-            </div>
-        `;
-
-        return;
-
-    }
-
-
-    container.innerHTML = "";
-
-
-    docs.forEach(item => {
-
-        const data =
-            item.data();
-
-        const mine =
-            data.senderUid ===
-            currentUser.uid;
-
-
-        const message =
-            document.createElement("div");
-
-
-        message.className =
-            "message " +
-            (
-                mine
-                    ? "mine"
-                    : "other"
-            );
-
-
-        message.innerHTML = `
-
-            <div>
-                ${escapeHTML(
-                    data.text || ""
-                )}
-            </div>
-
-            <div class="message-meta">
-                ${escapeHTML(
-                    data.senderName || ""
-                )}
-                ${data.createdAt
-                    ? " • " +
-                      formatTime(
-                          data.createdAt
-                      )
-                    : ""}
-            </div>
-
-        `;
-
-
-        container.appendChild(
-            message
-        );
-
+  const navItems =
+    document.querySelectorAll(".nav-item[data-page]");
+
+  const pageMap = {
+    homePage,
+    chatPage,
+    settingsPage
+  };
+
+  function showPage(pageId) {
+    Object.values(pageMap).forEach(page => {
+      if (page) {
+        page.classList.remove("active");
+      }
     });
 
+    const page = $(pageId);
 
-    container.scrollTop =
-        container.scrollHeight;
-
-}
-
-
-/* =========================================================
-   SEND MESSAGE
-   ========================================================= */
-
-async function sendMessage() {
-
-    const input =
-        $("messageInput");
-
-    const text =
-        input.value.trim();
-
-
-    if (!text) return;
-
-
-    if (!currentUser) {
-
-        showToast(
-            "ابتدا وارد دفترچه شوید."
-        );
-
-        return;
-
+    if (page) {
+      page.classList.add("active");
     }
 
+    navItems.forEach(item => {
+      item.classList.toggle(
+        "active",
+        item.dataset.page === pageId
+      );
+    });
 
-    const button =
-        $("sendMessageBtn");
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }
 
-    button.disabled = true;
+  navItems.forEach(item => {
+    item.addEventListener("click", () => {
+      showPage(item.dataset.page);
+    });
+  });
 
-
-    try {
-
-        await addDoc(
-            collection(
-                db,
-                "diaries",
-                diaryId,
-                "messages"
-            ),
-            {
-                senderUid:
-                    currentUser.uid,
-
-                senderName:
-                    currentName,
-
-                text:
-                    text,
-
-                favorite:
-                    false,
-
-                createdAt:
-                    serverTimestamp()
-            }
-        );
-
-
-        input.value = "";
-
-        input.style.height =
-            "42px";
-
-
-    } catch (error) {
-
-        console.error(
-            "Send:",
-            error
-        );
-
-        showToast(
-            firebaseErrorMessage(error)
-        );
-
-    } finally {
-
-        button.disabled = false;
-
-        input.focus();
-
-    }
-
+  document
+    .querySelectorAll('[data-page="chatPage"]')
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        showPage("chatPage");
+      });
+    });
 }
 
 
 /* =========================================================
-   TEXTAREA
+   Login
    ========================================================= */
 
-function setupChat() {
+function setupLogin() {
+  loginBtn?.addEventListener("click", login);
 
-    $("sendMessageBtn")
-        ?.addEventListener(
-            "click",
-            sendMessage
-        );
-
-
-    $("messageInput")
-        ?.addEventListener(
-            "keydown",
-            event => {
-
-                if (
-                    event.key === "Enter" &&
-                    !event.shiftKey
-                ) {
-
-                    event.preventDefault();
-
-                    sendMessage();
-
-                }
-
-            }
-        );
+  userNameInput?.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      login();
+    }
+  });
+}
 
 
-    $("messageInput")
-        ?.addEventListener(
-            "input",
-            event => {
+async function login() {
+  const name = userNameInput?.value.trim();
 
-                const textarea =
-                    event.target;
+  if (!name) {
+    showToast("لطفاً نام خودت را وارد کن");
+    userNameInput?.focus();
+    return;
+  }
 
-                textarea.style.height =
-                    "42px";
+  if (name.length > 40) {
+    showToast("نام خیلی طولانی است");
+    return;
+  }
 
-                textarea.style.height =
-                    Math.min(
-                        textarea.scrollHeight,
-                        100
-                    ) + "px";
+  loginBtn.disabled = true;
 
-            }
-        );
+  try {
+    currentUserName = name;
 
+    localStorage.setItem(
+      "diary-user-name",
+      currentUserName
+    );
+
+    await signInAnonymously(auth);
+
+  } catch (error) {
+    console.error(error);
+
+    showToast(
+      "ورود انجام نشد؛ اتصال اینترنت را بررسی کن"
+    );
+
+    loginBtn.disabled = false;
+  }
 }
 
 
 /* =========================================================
-   STATS
+   Auth
    ========================================================= */
 
-async function updateStats(
-    messageDocs = null
-) {
+onAuthStateChanged(auth, async user => {
+  if (!user) {
+    currentUser = null;
 
-    try {
+    loginScreen?.classList.remove("hidden");
+    appScreen?.classList.remove("active");
 
-        let docs =
-            messageDocs;
-
-
-        if (!docs) {
-
-            const snapshot =
-                await getDocs(
-                    collection(
-                        db,
-                        "diaries",
-                        diaryId,
-                        "messages"
-                    )
-                );
-
-            docs =
-                snapshot.docs;
-
-        }
-
-
-        const total =
-            docs.length;
-
-
-        const favorites =
-            docs.filter(
-                item =>
-                    item.data().favorite === true
-            ).length;
-
-
-        const days =
-            new Set(
-                docs
-                    .map(item =>
-                        item.data().createdAt
-                            ? formatDate(
-                                item.data().createdAt
-                            )
-                            : null
-                    )
-                    .filter(Boolean)
-            ).size;
-
-
-        $("memoryCount").textContent =
-            total;
-
-        $("favoriteCount").textContent =
-            favorites;
-
-        $("daysCount").textContent =
-            days;
-
-
-    } catch (error) {
-
-        console.error(
-            "Stats:",
-            error
-        );
-
+    if (loginBtn) {
+      loginBtn.disabled = false;
     }
 
+    return;
+  }
+
+  currentUser = user;
+
+  const savedName =
+    localStorage.getItem("diary-user-name");
+
+  if (!currentUserName && savedName) {
+    currentUserName = savedName;
+  }
+
+  if (!currentUserName) {
+    loginScreen?.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    await initializeDiary();
+  } catch (error) {
+    console.error(error);
+    showToast("خطا در آماده‌سازی دفترچه");
+  }
+});
+
+
+/* =========================================================
+   Initialize Diary
+   ========================================================= */
+
+async function initializeDiary() {
+  if (!currentUser) return;
+
+  const memberRef = doc(
+    db,
+    "diaries",
+    diaryId,
+    "members",
+    currentUser.uid
+  );
+
+  const memberSnap = await getDoc(memberRef);
+
+  if (!memberSnap.exists()) {
+    await setDoc(memberRef, {
+      uid: currentUser.uid,
+      name: currentUserName,
+      createdAt: serverTimestamp(),
+      lastSeen: serverTimestamp()
+    });
+  } else {
+    await updateDoc(memberRef, {
+      name: currentUserName,
+      lastSeen: serverTimestamp()
+    });
+  }
+
+  currentMember = {
+    uid: currentUser.uid,
+    name: currentUserName
+  };
+
+  loginScreen?.classList.add("hidden");
+  appScreen?.classList.add("active");
+
+  if (myNameEl) {
+    myNameEl.textContent = currentUserName;
+  }
+
+  if (settingsName) {
+    settingsName.textContent = currentUserName;
+  }
+
+  setupMembersListener();
+  setupPresence();
+  setupBattery();
+  setupChat();
+  setupIncomingCalls();
+  updateStats();
 }
 
 
 /* =========================================================
-   BATTERY
+   Members
+   ========================================================= */
+
+function setupMembersListener() {
+  if (unsubscribeMembers) {
+    unsubscribeMembers();
+  }
+
+  const membersRef =
+    collection(db, "diaries", diaryId, "members");
+
+  unsubscribeMembers = onSnapshot(
+    membersRef,
+    snapshot => {
+      const members = [];
+
+      snapshot.forEach(docSnap => {
+        members.push({
+          id: docSnap.id,
+          ...docSnap.data()
+        });
+      });
+
+      currentMember =
+        members.find(
+          member => member.uid === currentUser?.uid
+        ) || currentMember;
+
+      otherMember =
+        members.find(
+          member => member.uid !== currentUser?.uid
+        ) || null;
+
+      updatePartnerUI();
+
+      updateStats();
+    },
+    error => {
+      console.error("Members:", error);
+    }
+  );
+}
+
+
+function updatePartnerUI() {
+  if (!otherMember) {
+    if (otherNameEl) {
+      otherNameEl.textContent = "نفر دیگر";
+    }
+
+    if (chatPartnerName) {
+      chatPartnerName.textContent = "نفر دیگر";
+    }
+
+    if (chatOnlineStatus) {
+      chatOnlineStatus.textContent =
+        "در انتظار اتصال...";
+    }
+
+    return;
+  }
+
+  if (otherNameEl) {
+    otherNameEl.textContent =
+      otherMember.name || "نفر دیگر";
+  }
+
+  if (chatPartnerName) {
+    chatPartnerName.textContent =
+      otherMember.name || "نفر دیگر";
+  }
+
+  subscribeOtherPresence();
+  subscribeOtherBattery();
+}
+
+
+/* =========================================================
+   Presence
+   ========================================================= */
+
+function setupPresence() {
+  if (!currentUser) return;
+
+  const presenceRef = ref(
+    rtdb,
+    `diaries/${diaryId}/presence/${currentUser.uid}`
+  );
+
+  set(presenceRef, {
+    online: true,
+    lastChanged: Date.now()
+  }).catch(console.error);
+
+  onDisconnect(presenceRef)
+    .set({
+      online: false,
+      lastChanged: Date.now()
+    })
+    .catch(console.error);
+
+  window.addEventListener(
+    "beforeunload",
+    () => {
+      set(presenceRef, {
+        online: false,
+        lastChanged: Date.now()
+      }).catch(() => {});
+    },
+    { once: true }
+  );
+
+  subscribeOtherPresence();
+}
+
+
+function subscribeOtherPresence() {
+  if (!otherMember) return;
+
+  if (unsubscribeOtherPresence) {
+    unsubscribeOtherPresence();
+  }
+
+  const presenceRef = ref(
+    rtdb,
+    `diaries/${diaryId}/presence/${otherMember.uid}`
+  );
+
+  unsubscribeOtherPresence = onValue(
+    presenceRef,
+    snapshot => {
+      const data = snapshot.val();
+
+      const online = !!data?.online;
+
+      if (chatOnlineStatus) {
+        chatOnlineStatus.textContent =
+          online
+            ? "آنلاین"
+            : "آخرین اتصال ثبت شده";
+      }
+    }
+  );
+}
+
+
+/* =========================================================
+   Battery
    ========================================================= */
 
 async function setupBattery() {
+  updateMyBattery(100, false);
 
-    if (
-        !("getBattery" in navigator)
-    ) {
+  if (!navigator.getBattery) {
+    updateMyBattery(100, false);
+    publishBattery(100, false);
+    return;
+  }
 
-        $("myBatteryText").textContent =
-            "نامشخص";
+  try {
+    const battery = await navigator.getBattery();
 
-        $("myCharging").textContent =
-            "مرورگر باتری را ارائه نمی‌کند.";
+    const update = () => {
+      const level =
+        Math.round(battery.level * 100);
 
-        return;
+      const charging =
+        battery.charging === true;
 
-    }
-
-
-    try {
-
-        batteryObject =
-            await navigator.getBattery();
-
-
-        updateMyBattery();
-
-        writeMyPresence();
-
-
-        batteryObject.addEventListener(
-            "levelchange",
-            () => {
-
-                updateMyBattery();
-
-                writeMyPresence();
-
-            }
-        );
-
-
-        batteryObject.addEventListener(
-            "chargingchange",
-            () => {
-
-                updateMyBattery();
-
-                writeMyPresence();
-
-            }
-        );
-
-
-        /*
-          هر 30 ثانیه وضعیت دوباره
-          روی Firebase نوشته می‌شود.
-        */
-
-        setInterval(
-            writeMyPresence,
-            30000
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Battery:",
-            error
-        );
-
-    }
-
-}
-
-
-function updateMyBattery() {
-
-    if (!batteryObject) return;
-
-
-    const level =
-        Math.round(
-            batteryObject.level * 100
-        );
-
-
-    const charging =
-        batteryObject.charging;
-
-
-    $("myBatteryText").textContent =
-        `${level}%`;
-
-
-    $("myBatteryFill").style.width =
-        `${level}%`;
-
-
-    $("myCharging").textContent =
-        charging
-            ? "⚡ در حال شارژ"
-            : "در حال استفاده";
-
-
-    updateOnlineStatus();
-
-}
-
-
-async function writeMyPresence() {
-
-    if (
-        !currentUser ||
-        !batteryObject
-    ) return;
-
-
-    const presenceRef =
-        ref(
-            realtimeDB,
-            `diaries/${diaryId}/presence/${currentUser.uid}`
-        );
-
-
-    const data = {
-
-        online: true,
-
-        name: currentName,
-
-        battery:
-            Math.round(
-                batteryObject.level * 100
-            ),
-
-        charging:
-            batteryObject.charging,
-
-        updatedAt:
-            Date.now()
-
+      updateMyBattery(level, charging);
+      publishBattery(level, charging);
     };
 
+    update();
 
-    try {
+    battery.addEventListener(
+      "levelchange",
+      update
+    );
 
-        await set(
-            presenceRef,
-            data
+    battery.addEventListener(
+      "chargingchange",
+      update
+    );
+
+  } catch (error) {
+    console.warn("Battery API unavailable:", error);
+
+    updateMyBattery(100, false);
+  }
+
+  subscribeOtherBattery();
+}
+
+
+function updateMyBattery(level, charging) {
+  if (myBatteryFill) {
+    myBatteryFill.style.width =
+      `${Math.max(0, Math.min(100, level))}%`;
+  }
+
+  if (myBatteryText) {
+    myBatteryText.textContent =
+      `${level}%`;
+  }
+
+  if (myCharging) {
+    myCharging.textContent =
+      charging ? "⚡ در حال شارژ" : "";
+  }
+}
+
+
+function publishBattery(level, charging) {
+  if (!currentUser) return;
+
+  const batteryRef = ref(
+    rtdb,
+    `diaries/${diaryId}/battery/${currentUser.uid}`
+  );
+
+  set(batteryRef, {
+    level,
+    charging,
+    updatedAt: Date.now()
+  }).catch(() => {});
+}
+
+
+function subscribeOtherBattery() {
+  if (!otherMember) return;
+
+  if (unsubscribeOtherBattery) {
+    unsubscribeOtherBattery();
+  }
+
+  const batteryRef = ref(
+    rtdb,
+    `diaries/${diaryId}/battery/${otherMember.uid}`
+  );
+
+  unsubscribeOtherBattery = onValue(
+    batteryRef,
+    snapshot => {
+      const data = snapshot.val();
+
+      if (!data) return;
+
+      const level =
+        Math.max(
+          0,
+          Math.min(
+            100,
+            Number(data.level ?? 0)
+          )
         );
 
+      if (otherBatteryFill) {
+        otherBatteryFill.style.width =
+          `${level}%`;
+      }
 
-        onDisconnect(
-            presenceRef
-        ).set({
-            online: false,
-            name: currentName,
-            updatedAt: Date.now()
-        });
+      if (otherBatteryText) {
+        otherBatteryText.textContent =
+          `${level}%`;
+      }
 
-    } catch (error) {
-
-        console.error(
-            "Presence:",
-            error
-        );
-
+      if (otherCharging) {
+        otherCharging.textContent =
+          data.charging
+            ? "⚡ در حال شارژ"
+            : "";
+      }
     }
-
+  );
 }
 
 
 /* =========================================================
-   PARTNER PRESENCE
+   Chat
    ========================================================= */
 
-function subscribeOtherPresence() {
+function setupChat() {
+  if (!currentUser) return;
 
-    if (!otherMember) return;
+  if (unsubscribeMessages) {
+    unsubscribeMessages();
+  }
 
+  const messagesRef =
+    collection(
+      db,
+      "diaries",
+      diaryId,
+      "messages"
+    );
 
-    if (unsubscribeOtherPresence) {
+  const messagesQuery = query(
+    messagesRef,
+    orderBy("createdAt", "asc")
+  );
 
-        unsubscribeOtherPresence();
+  unsubscribeMessages = onSnapshot(
+    messagesQuery,
+    snapshot => {
+      renderMessages(snapshot.docs);
+      updateStats();
+    },
+    error => {
+      console.error("Messages:", error);
 
-        unsubscribeOtherPresence = null;
+      /*
+       اگر به دلیل Index خطا رخ داد،
+       بدون orderBy دوباره دریافت می‌کنیم.
+      */
 
-    }
-
-
-    const presenceRef =
-        ref(
-            realtimeDB,
-            `diaries/${diaryId}/presence/${otherMember.uid}`
+      const fallbackQuery =
+        collection(
+          db,
+          "diaries",
+          diaryId,
+          "messages"
         );
 
+      onSnapshot(
+        fallbackQuery,
+        fallbackSnapshot => {
+          const docs =
+            [...fallbackSnapshot.docs].sort(
+              (a, b) => {
+                const ta =
+                  a.data().createdAt?.toMillis?.() || 0;
 
-    unsubscribeOtherPresence =
-        onValue(
-            presenceRef,
-            snapshot => {
+                const tb =
+                  b.data().createdAt?.toMillis?.() || 0;
 
-                const data =
-                    snapshot.val();
-
-
-                if (!data) {
-
-                    setPartnerOffline();
-
-                    return;
-
-                }
-
-
-                updatePartnerBattery(
-                    data
-                );
-
-
-                if (data.online) {
-
-                    $("chatOnlineStatus").textContent =
-                        "آنلاین";
-
-                } else {
-
-                    $("chatOnlineStatus").textContent =
-                        "آفلاین";
-
-                }
-
-            },
-            error => {
-
-                console.error(
-                    "Partner presence:",
-                    error
-                );
-
-            }
-        );
-
-}
-
-
-function updatePartnerBattery(data) {
-
-    const level =
-        Number.isFinite(
-            Number(data.battery)
-        )
-            ? Number(data.battery)
-            : null;
-
-
-    if (level !== null) {
-
-        $("otherBatteryText").textContent =
-            `${level}%`;
-
-        $("otherBatteryFill").style.width =
-            `${Math.max(
-                0,
-                Math.min(
-                    100,
-                    level
-                )
-            )}%`;
-
-    } else {
-
-        $("otherBatteryText").textContent =
-            "—";
-
-        $("otherBatteryFill").style.width =
-            "0%";
-
-    }
-
-
-    $("otherCharging").textContent =
-        data.charging
-            ? "⚡ در حال شارژ"
-            : (
-                data.online
-                    ? "در حال استفاده"
-                    : "آفلاین"
+                return ta - tb;
+              }
             );
 
+          renderMessages(docs);
+        }
+      );
+    }
+  );
+
+  sendMessageBtn?.addEventListener(
+    "click",
+    sendMessage
+  );
+
+  messageInput?.addEventListener(
+    "keydown",
+    event => {
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey
+      ) {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+  );
 }
 
 
-function setPartnerOffline() {
+async function sendMessage() {
+  if (!currentUser) return;
 
-    $("otherBatteryText").textContent =
-        "—";
+  const text =
+    messageInput?.value.trim();
 
-    $("otherBatteryFill").style.width =
-        "0%";
+  if (!text) return;
 
-    $("otherCharging").textContent =
-        "آفلاین";
+  if (text.length > 4000) {
+    showToast("پیام خیلی طولانی است");
+    return;
+  }
 
-    $("chatOnlineStatus").textContent =
-        "آفلاین";
+  sendMessageBtn.disabled = true;
 
+  try {
+    await addDoc(
+      collection(
+        db,
+        "diaries",
+        diaryId,
+        "messages"
+      ),
+      {
+        senderUid: currentUser.uid,
+        senderName: currentUserName,
+        text,
+        type: "text",
+        favorite: false,
+        createdAt: serverTimestamp()
+      }
+    );
+
+    messageInput.value = "";
+    messageInput.focus();
+
+  } catch (error) {
+    console.error(error);
+    showToast("پیام ارسال نشد");
+  }
+
+  sendMessageBtn.disabled = false;
 }
 
 
-function updateOnlineStatus() {
+function renderMessages(docs) {
+  if (!messagesContainer) return;
 
-    /*
-      وضعیت کلی توسط subscribeOtherPresence
-      مدیریت می‌شود.
-    */
+  messagesContainer.innerHTML = "";
 
+  if (!docs.length) {
+    messagesContainer.innerHTML = `
+      <div class="empty-chat">
+        <div class="empty-chat-icon">💌</div>
+        <div>هنوز پیامی نوشته نشده</div>
+        <small>اولین خاطره‌تان را اینجا ثبت کنید</small>
+      </div>
+    `;
+
+    return;
+  }
+
+  docs.forEach(docSnap => {
+    const data = docSnap.data();
+
+    const mine =
+      data.senderUid === currentUser?.uid;
+
+    const message = document.createElement("div");
+
+    message.className =
+      `message ${mine ? "mine" : "other"}`;
+
+    const favoriteIcon =
+      data.favorite ? "❤️" : "";
+
+    message.innerHTML = `
+      <div class="message-content">
+        <div class="message-text">
+          ${escapeHTML(data.text)}
+        </div>
+
+        <div class="message-meta">
+          <span>${formatTime(data.createdAt)}</span>
+          ${favoriteIcon
+            ? `<span>${favoriteIcon}</span>`
+            : ""}
+        </div>
+      </div>
+    `;
+
+    message.addEventListener(
+      "contextmenu",
+      event => {
+        event.preventDefault();
+        toggleFavorite(docSnap.id, data.favorite);
+      }
+    );
+
+    messagesContainer.appendChild(message);
+  });
+
+  requestAnimationFrame(() => {
+    messagesContainer.scrollTop =
+      messagesContainer.scrollHeight;
+  });
+}
+
+
+async function toggleFavorite(messageId, currentValue) {
+  try {
+    const messageRef = doc(
+      db,
+      "diaries",
+      diaryId,
+      "messages",
+      messageId
+    );
+
+    await updateDoc(messageRef, {
+      favorite: !currentValue
+    });
+
+    showToast(
+      currentValue
+        ? "از علاقه‌مندی‌ها حذف شد"
+        : "به علاقه‌مندی‌ها اضافه شد"
+    );
+
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 
 /* =========================================================
-   LOGOUT
+   Stats
    ========================================================= */
+
+async function updateStats() {
+  if (!currentUser) return;
+
+  try {
+    const messagesSnap =
+      await getDocs(
+        collection(
+          db,
+          "diaries",
+          diaryId,
+          "messages"
+        )
+      );
+
+    let favorite = 0;
+    const days = new Set();
+
+    messagesSnap.forEach(docSnap => {
+      const data = docSnap.data();
+
+      if (data.favorite) {
+        favorite++;
+      }
+
+      if (data.createdAt) {
+        days.add(formatDate(data.createdAt));
+      }
+    });
+
+    if (memoryCount) {
+      memoryCount.textContent =
+        messagesSnap.size;
+    }
+
+    if (favoriteCount) {
+      favoriteCount.textContent =
+        favorite;
+    }
+
+    if (daysCount) {
+      daysCount.textContent =
+        days.size;
+    }
+
+  } catch (error) {
+    console.warn("Stats:", error);
+  }
+}
+
+
+/* =========================================================
+   Settings
+   ========================================================= */
+
+function setupSettings() {
+  logoutBtn?.addEventListener(
+    "click",
+    logout
+  );
+
+  if (settingsName) {
+    settingsName.addEventListener(
+      "click",
+      () => {
+        showToast(
+          "نام در صفحه ورود تعیین می‌شود"
+        );
+      }
+    );
+  }
+}
+
 
 async function logout() {
+  try {
+    localStorage.removeItem(
+      "diary-user-name"
+    );
 
-    try {
+    currentUserName = "";
 
-        if (currentUser) {
+    await signOut(auth);
 
-            const presenceRef =
-                ref(
-                    realtimeDB,
-                    `diaries/${diaryId}/presence/${currentUser.uid}`
-                );
+    showToast("خارج شدی");
+
+  } catch (error) {
+    console.error(error);
+    showToast("خروج انجام نشد");
+  }
+}
 
 
-            await set(
-                presenceRef,
-                {
-                    online: false,
-                    name: currentName,
-                    updatedAt: Date.now()
-                }
+/* =========================================================
+   WebRTC
+   ========================================================= */
+
+const ICE_SERVERS = {
+  iceServers: [
+    {
+      urls: "stun:stun.l.google.com:19302"
+    },
+    {
+      urls: "stun:stun1.l.google.com:19302"
+    }
+  ]
+};
+
+
+function setupCallButtons() {
+  audioCallBtn?.addEventListener(
+    "click",
+    () => startCall("audio")
+  );
+
+  videoCallBtn?.addEventListener(
+    "click",
+    () => startCall("video")
+  );
+
+  rejectCallBtn?.addEventListener(
+    "click",
+    rejectIncomingCall
+  );
+
+  acceptCallBtn?.addEventListener(
+    "click",
+    acceptIncomingCall
+  );
+
+  endCallBtn?.addEventListener(
+    "click",
+    endCall
+  );
+
+  micBtn?.addEventListener(
+    "click",
+    toggleMicrophone
+  );
+
+  cameraBtn?.addEventListener(
+    "click",
+    toggleCamera
+  );
+
+  speakerBtn?.addEventListener(
+    "click",
+    toggleSpeaker
+  );
+}
+
+
+/* =========================================================
+   Start Call
+   ========================================================= */
+
+async function startCall(type) {
+  if (!currentUser) return;
+
+  if (!otherMember) {
+    showToast("هنوز نفر دوم وارد دفترچه نشده");
+    return;
+  }
+
+  if (currentCallId) {
+    showToast("یک تماس در حال انجام است");
+    return;
+  }
+
+  try {
+    currentCallType = type;
+
+    const callRef = await addDoc(
+      collection(
+        db,
+        "diaries",
+        diaryId,
+        "calls"
+      ),
+      {
+        callerUid: currentUser.uid,
+        callerName: currentUserName,
+        calleeUid: otherMember.uid,
+        calleeName: otherMember.name || "نفر دیگر",
+        type,
+        status: "ringing",
+        createdAt: serverTimestamp()
+      }
+    );
+
+    currentCallId = callRef.id;
+
+    await openLocalMedia(type);
+
+    createPeerConnection();
+
+    showCallScreen(
+      type,
+      false
+    );
+
+    const offer =
+      await peerConnection.createOffer();
+
+    await peerConnection.setLocalDescription(
+      offer
+    );
+
+    await updateDoc(callRef, {
+      offer: {
+        type: offer.type,
+        sdp: offer.sdp
+      }
+    });
+
+    listenToCallDocument(callRef.id);
+
+    await listenForCandidates(
+      callRef.id,
+      "callerCandidates"
+    );
+
+    callStatus.textContent =
+      "در حال برقراری تماس...";
+
+  } catch (error) {
+    console.error("Start call:", error);
+
+    showToast(
+      "برقراری تماس ممکن نشد"
+    );
+
+    await cleanupCall();
+  }
+}
+
+
+/* =========================================================
+   Incoming Calls
+   ========================================================= */
+
+function setupIncomingCalls() {
+  if (!currentUser) return;
+
+  if (unsubscribeIncoming) {
+    unsubscribeIncoming();
+  }
+
+  const callsRef =
+    collection(
+      db,
+      "diaries",
+      diaryId,
+      "calls"
+    );
+
+  const incomingQuery = query(
+    callsRef,
+    where(
+      "calleeUid",
+      "==",
+      currentUser.uid
+    )
+  );
+
+  unsubscribeIncoming =
+    onSnapshot(
+      incomingQuery,
+      snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (
+            change.type !== "added" &&
+            change.type !== "modified"
+          ) {
+            return;
+          }
+
+          const data = change.doc.data();
+
+          if (
+            data.status === "ringing" &&
+            !currentCallId
+          ) {
+            showIncomingCall(
+              change.doc.id,
+              data
+            );
+          }
+        });
+      },
+      error => {
+        console.error(
+          "Incoming calls:",
+          error
+        );
+      }
+    );
+}
+
+
+function showIncomingCall(callId, data) {
+  pendingIncomingCall = {
+    id: callId,
+    data
+  };
+
+  if (incomingCallerName) {
+    incomingCallerName.textContent =
+      data.callerName || "نفر دیگر";
+  }
+
+  if (incomingCallType) {
+    incomingCallType.textContent =
+      data.type === "video"
+        ? "تماس تصویری"
+        : "تماس صوتی";
+  }
+
+  incomingCallModal?.classList.add("show");
+}
+
+
+async function acceptIncomingCall() {
+  if (!pendingIncomingCall) return;
+
+  const {
+    id,
+    data
+  } = pendingIncomingCall;
+
+  pendingIncomingCall = null;
+
+  incomingCallModal?.classList.remove("show");
+
+  try {
+    currentCallId = id;
+    currentCallType = data.type;
+
+    const callRef = doc(
+      db,
+      "diaries",
+      diaryId,
+      "calls",
+      id
+    );
+
+    const callSnap =
+      await getDoc(callRef);
+
+    if (!callSnap.exists()) {
+      throw new Error(
+        "Call does not exist"
+      );
+    }
+
+    const callData =
+      callSnap.data();
+
+    await updateDoc(callRef, {
+      status: "accepted"
+    });
+
+    await openLocalMedia(
+      data.type
+    );
+
+    createPeerConnection();
+
+    showCallScreen(
+      data.type,
+      true
+    );
+
+    if (callData.offer) {
+      await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(
+          callData.offer
+        )
+      );
+
+      const answer =
+        await peerConnection.createAnswer();
+
+      await peerConnection.setLocalDescription(
+        answer
+      );
+
+      await updateDoc(callRef, {
+        answer: {
+          type: answer.type,
+          sdp: answer.sdp
+        }
+      });
+    }
+
+    listenToCallDocument(id);
+
+    await listenForCandidates(
+      id,
+      "calleeCandidates"
+    );
+
+    callStatus.textContent =
+      "متصل";
+
+    startCallTimer();
+
+  } catch (error) {
+    console.error(
+      "Accept call:",
+      error
+    );
+
+    showToast(
+      "پذیرش تماس انجام نشد"
+    );
+
+    await cleanupCall();
+  }
+}
+
+
+async function rejectIncomingCall() {
+  if (!pendingIncomingCall) {
+    incomingCallModal?.classList.remove(
+      "show"
+    );
+    return;
+  }
+
+  const callId =
+    pendingIncomingCall.id;
+
+  pendingIncomingCall = null;
+
+  incomingCallModal?.classList.remove(
+    "show"
+  );
+
+  try {
+    const callRef = doc(
+      db,
+      "diaries",
+      diaryId,
+      "calls",
+      callId
+    );
+
+    await updateDoc(callRef, {
+      status: "rejected"
+    });
+
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+
+/* =========================================================
+   Peer Connection
+   ========================================================= */
+
+function createPeerConnection() {
+  if (peerConnection) {
+    peerConnection.close();
+  }
+
+  peerConnection =
+    new RTCPeerConnection(
+      ICE_SERVERS
+    );
+
+  remoteStream =
+    new MediaStream();
+
+  if (remoteVideo) {
+    remoteVideo.srcObject =
+      remoteStream;
+  }
+
+  if (remoteAudio) {
+    remoteAudio.srcObject =
+      remoteStream;
+  }
+
+  if (localStream) {
+    localStream
+      .getTracks()
+      .forEach(track => {
+        peerConnection.addTrack(
+          track,
+          localStream
+        );
+      });
+  }
+
+  peerConnection.ontrack = event => {
+    event.streams[0]
+      ?.getTracks()
+      .forEach(track => {
+        remoteStream.addTrack(track);
+      });
+
+    if (remoteVideo) {
+      remoteVideo.srcObject =
+        remoteStream;
+    }
+
+    if (remoteAudio) {
+      remoteAudio.srcObject =
+        remoteStream;
+    }
+
+    callStatus.textContent =
+      "متصل";
+
+    startCallTimer();
+  };
+
+  peerConnection.onconnectionstatechange =
+    () => {
+      const state =
+        peerConnection.connectionState;
+
+      if (
+        state === "connected"
+      ) {
+        callStatus.textContent =
+          "متصل";
+
+        startCallTimer();
+      }
+
+      if (
+        state === "disconnected" ||
+        state === "failed"
+      ) {
+        callStatus.textContent =
+          "ارتباط قطع شد";
+      }
+
+      if (
+        state === "closed"
+      ) {
+        callStatus.textContent =
+          "تماس پایان یافت";
+      }
+    };
+
+  peerConnection.onicecandidate =
+    async event => {
+      if (!event.candidate) return;
+      if (!currentCallId) return;
+
+      const side =
+        isCaller
+          ? "callerCandidates"
+          : "calleeCandidates";
+
+      try {
+        await addDoc(
+          collection(
+            db,
+            "diaries",
+            diaryId,
+            "calls",
+            currentCallId,
+            side
+          ),
+          {
+            candidate:
+              event.candidate.toJSON(),
+            createdAt:
+              serverTimestamp()
+          }
+        );
+      } catch (error) {
+        console.error(
+          "ICE candidate:",
+          error
+        );
+      }
+    };
+}
+
+
+/*
+  مشخص می‌کند کاربر Caller است یا Callee.
+*/
+let isCaller = false;
+
+
+/* =========================================================
+   Local Media
+   ========================================================= */
+
+async function openLocalMedia(type) {
+  const constraints =
+    type === "video"
+      ? {
+          audio: true,
+          video: true
+        }
+      : {
+          audio: true,
+          video: false
+        };
+
+  try {
+    localStream =
+      await navigator.mediaDevices.getUserMedia(
+        constraints
+      );
+
+    microphoneEnabled = true;
+    cameraEnabled =
+      type === "video";
+
+    if (localVideo) {
+      localVideo.srcObject =
+        localStream;
+    }
+
+    if (type !== "video") {
+      cameraEnabled = false;
+    }
+
+  } catch (error) {
+    console.error(
+      "getUserMedia:",
+      error
+    );
+
+    if (type === "video") {
+      showToast(
+        "دسترسی دوربین یا میکروفون داده نشد"
+      );
+    } else {
+      showToast(
+        "دسترسی میکروفون داده نشد"
+      );
+    }
+
+    throw error;
+  }
+}
+
+
+/* =========================================================
+   Call Document Listener
+   ========================================================= */
+
+function listenToCallDocument(callId) {
+  if (unsubscribeCall) {
+    unsubscribeCall();
+  }
+
+  const callRef = doc(
+    db,
+    "diaries",
+    diaryId,
+    "calls",
+    callId
+  );
+
+  unsubscribeCall =
+    onSnapshot(
+      callRef,
+      async snapshot => {
+        if (!snapshot.exists()) return;
+
+        const data =
+          snapshot.data();
+
+        currentCallDoc = data;
+
+        if (
+          isCaller &&
+          data.answer &&
+          peerConnection &&
+          !peerConnection.currentRemoteDescription
+        ) {
+          try {
+            await peerConnection.setRemoteDescription(
+              new RTCSessionDescription(
+                data.answer
+              )
             );
 
+            callStatus.textContent =
+              "متصل";
+
+            startCallTimer();
+
+          } catch (error) {
+            console.error(
+              "Set answer:",
+              error
+            );
+          }
         }
 
+        if (
+          data.status === "rejected"
+        ) {
+          showToast(
+            "تماس رد شد"
+          );
 
-        await signOut(auth);
+          await cleanupCall();
+        }
 
-
-    } catch (error) {
-
+        if (
+          data.status === "ended"
+        ) {
+          await cleanupCall();
+        }
+      },
+      error => {
         console.error(
-            "Logout:",
-            error
+          "Call listener:",
+          error
         );
-
-    } finally {
-
-        localStorage.removeItem(
-            "diary-logged-in"
-        );
-
-        currentUser = null;
-
-        currentName = "";
-
-        location.reload();
-
-    }
-
+      }
+    );
 }
 
 
 /* =========================================================
-   SERVICES
+   ICE Candidates
    ========================================================= */
 
-function startServices() {
+async function listenForCandidates(
+  callId,
+  collectionName
+) {
+  if (!peerConnection) return;
 
-    subscribeMembers();
+  const candidatesRef =
+    collection(
+      db,
+      "diaries",
+      diaryId,
+      "calls",
+      callId,
+      collectionName
+    );
 
-    subscribeMessages();
+  onSnapshot(
+    candidatesRef,
+    snapshot => {
+      snapshot.docChanges()
+        .forEach(async change => {
+          if (
+            change.type !== "added"
+          ) {
+            return;
+          }
 
-    setupBattery();
+          const data =
+            change.doc.data();
 
-    updateStats();
+          if (!data.candidate) {
+            return;
+          }
 
+          try {
+            await peerConnection.addIceCandidate(
+              new RTCIceCandidate(
+                data.candidate
+              )
+            );
+          } catch (error) {
+            console.warn(
+              "ICE add:",
+              error
+            );
+          }
+        });
+    }
+  );
 }
 
 
 /* =========================================================
-   AUTH STATE
+   Call UI
    ========================================================= */
 
-onAuthStateChanged(
-    auth,
-    user => {
+function showCallScreen(
+  type,
+  incoming
+) {
+  if (!callScreen) return;
 
-        currentUser =
-            user || null;
+  callScreen.classList.add(
+    "active"
+  );
 
-    }
-);
+  if (callTitle) {
+    callTitle.textContent =
+      type === "video"
+        ? "تماس تصویری"
+        : "تماس صوتی";
+  }
+
+  if (callStatus) {
+    callStatus.textContent =
+      incoming
+        ? "در حال اتصال..."
+        : "در حال برقراری تماس...";
+  }
+
+  if (callTimer) {
+    callTimer.textContent =
+      "00:00";
+  }
+
+  microphoneEnabled = true;
+  cameraEnabled =
+    type === "video";
+  speakerEnabled = true;
+
+  updateCallButtons();
+
+  if (type === "video") {
+    remoteVideo?.classList.add(
+      "visible"
+    );
+    localVideo?.classList.add(
+      "visible"
+    );
+  } else {
+    remoteVideo?.classList.remove(
+      "visible"
+    );
+    localVideo?.classList.remove(
+      "visible"
+    );
+  }
+}
 
 
 /* =========================================================
-   START
+   Call Controls
+   ========================================================= */
+
+function toggleMicrophone() {
+  if (!localStream) return;
+
+  const tracks =
+    localStream.getAudioTracks();
+
+  if (!tracks.length) return;
+
+  microphoneEnabled =
+    !microphoneEnabled;
+
+  tracks.forEach(track => {
+    track.enabled =
+      microphoneEnabled;
+  });
+
+  updateCallButtons();
+}
+
+
+function toggleCamera() {
+  if (!localStream) return;
+
+  const tracks =
+    localStream.getVideoTracks();
+
+  if (!tracks.length) {
+    showToast(
+      "این تماس دوربین ندارد"
+    );
+    return;
+  }
+
+  cameraEnabled =
+    !cameraEnabled;
+
+  tracks.forEach(track => {
+    track.enabled =
+      cameraEnabled;
+  });
+
+  updateCallButtons();
+}
+
+
+function toggleSpeaker() {
+  speakerEnabled =
+    !speakerEnabled;
+
+  if (remoteAudio) {
+    remoteAudio.muted =
+      !speakerEnabled;
+  }
+
+  if (remoteVideo) {
+    remoteVideo.muted =
+      !speakerEnabled;
+  }
+
+  updateCallButtons();
+}
+
+
+function updateCallButtons() {
+  if (micBtn) {
+    micBtn.classList.toggle(
+      "off",
+      !microphoneEnabled
+    );
+
+    micBtn.textContent =
+      microphoneEnabled
+        ? "🎙️"
+        : "🔇";
+  }
+
+  if (cameraBtn) {
+    cameraBtn.classList.toggle(
+      "off",
+      !cameraEnabled
+    );
+
+    cameraBtn.textContent =
+      cameraEnabled
+        ? "📹"
+        : "🚫";
+  }
+
+  if (speakerBtn) {
+    speakerBtn.classList.toggle(
+      "off",
+      !speakerEnabled
+    );
+
+    speakerBtn.textContent =
+      speakerEnabled
+        ? "🔊"
+        : "🔇";
+  }
+}
+
+
+/* =========================================================
+   Call Timer
+   ========================================================= */
+
+function startCallTimer() {
+  if (callTimerInterval) {
+    return;
+  }
+
+  callStartedAt =
+    Date.now();
+
+  callTimerInterval =
+    setInterval(() => {
+      if (!callTimer) return;
+
+      const seconds =
+        Math.floor(
+          (Date.now() -
+            callStartedAt) /
+            1000
+        );
+
+      const minutes =
+        Math.floor(
+          seconds / 60
+        );
+
+      const remaining =
+        seconds % 60;
+
+      callTimer.textContent =
+        `${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}`;
+    }, 1000);
+}
+
+
+/* =========================================================
+   End Call
+   ========================================================= */
+
+async function endCall() {
+  try {
+    if (
+      currentCallId &&
+      currentUser
+    ) {
+      const callRef = doc(
+        db,
+        "diaries",
+        diaryId,
+        "calls",
+        currentCallId
+      );
+
+      await updateDoc(
+        callRef,
+        {
+          status: "ended",
+          endedAt: serverTimestamp()
+        }
+      );
+    }
+  } catch (error) {
+    console.warn(
+      "End call update:",
+      error
+    );
+  }
+
+  await cleanupCall();
+}
+
+
+async function cleanupCall() {
+  if (callTimerInterval) {
+    clearInterval(
+      callTimerInterval
+    );
+
+    callTimerInterval = null;
+  }
+
+  if (unsubscribeCall) {
+    unsubscribeCall();
+    unsubscribeCall = null;
+  }
+
+  if (peerConnection) {
+    try {
+      peerConnection.close();
+    } catch {}
+  }
+
+  peerConnection = null;
+
+  if (localStream) {
+    localStream
+      .getTracks()
+      .forEach(track => {
+        track.stop();
+      });
+  }
+
+  localStream = null;
+  remoteStream = null;
+
+  if (localVideo) {
+    localVideo.srcObject = null;
+  }
+
+  if (remoteVideo) {
+    remoteVideo.srcObject = null;
+  }
+
+  if (remoteAudio) {
+    remoteAudio.srcObject = null;
+  }
+
+  currentCallId = null;
+  currentCallType = null;
+  currentCallDoc = null;
+
+  microphoneEnabled = true;
+  cameraEnabled = true;
+  speakerEnabled = true;
+
+  callScreen?.classList.remove(
+    "active"
+  );
+}
+
+
+/* =========================================================
+   تنظیم Caller
+   ========================================================= */
+
+async function startCallerConnection(
+  callId
+) {
+  isCaller = true;
+
+  listenToCallDocument(
+    callId
+  );
+
+  await listenForCandidates(
+    callId,
+    "calleeCandidates"
+  );
+}
+
+
+/* =========================================================
+   اصلاح Start Call برای Caller
+   ========================================================= */
+
+const originalStartCall = startCall;
+
+startCall = async function(type) {
+  isCaller = true;
+
+  if (!currentUser) return;
+
+  if (!otherMember) {
+    showToast(
+      "هنوز نفر دوم وارد دفترچه نشده"
+    );
+    return;
+  }
+
+  if (currentCallId) {
+    showToast(
+      "یک تماس در حال انجام است"
+    );
+    return;
+  }
+
+  try {
+    currentCallType = type;
+
+    const callRef =
+      await addDoc(
+        collection(
+          db,
+          "diaries",
+          diaryId,
+          "calls"
+        ),
+        {
+          callerUid:
+            currentUser.uid,
+
+          callerName:
+            currentUserName,
+
+          calleeUid:
+            otherMember.uid,
+
+          calleeName:
+            otherMember.name ||
+            "نفر دیگر",
+
+          type,
+
+          status:
+            "ringing",
+
+          createdAt:
+            serverTimestamp()
+        }
+      );
+
+    currentCallId =
+      callRef.id;
+
+    await openLocalMedia(
+      type
+    );
+
+    createPeerConnection();
+
+    showCallScreen(
+      type,
+      false
+    );
+
+    const offer =
+      await peerConnection.createOffer();
+
+    await peerConnection.setLocalDescription(
+      offer
+    );
+
+    await updateDoc(
+      callRef,
+      {
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp
+        }
+      }
+    );
+
+    await startCallerConnection(
+      callRef.id
+    );
+
+    callStatus.textContent =
+      "در حال برقراری تماس...";
+
+  } catch (error) {
+    console.error(
+      "Start call:",
+      error
+    );
+
+    showToast(
+      "برقراری تماس ممکن نشد"
+    );
+
+    await cleanupCall();
+  }
+};
+
+
+/* =========================================================
+   اصلاح Accept برای Callee
+   ========================================================= */
+
+const originalAcceptIncomingCall =
+  acceptIncomingCall;
+
+acceptIncomingCall = async function() {
+  isCaller = false;
+
+  if (!pendingIncomingCall) return;
+
+  const {
+    id,
+    data
+  } = pendingIncomingCall;
+
+  pendingIncomingCall = null;
+
+  incomingCallModal?.classList.remove(
+    "show"
+  );
+
+  try {
+    currentCallId = id;
+    currentCallType = data.type;
+
+    const callRef = doc(
+      db,
+      "diaries",
+      diaryId,
+      "calls",
+      id
+    );
+
+    const callSnap =
+      await getDoc(callRef);
+
+    if (!callSnap.exists()) {
+      throw new Error(
+        "Call not found"
+      );
+    }
+
+    const callData =
+      callSnap.data();
+
+    await openLocalMedia(
+      data.type
+    );
+
+    createPeerConnection();
+
+    showCallScreen(
+      data.type,
+      true
+    );
+
+    if (callData.offer) {
+      await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(
+          callData.offer
+        )
+      );
+
+      const answer =
+        await peerConnection.createAnswer();
+
+      await peerConnection.setLocalDescription(
+        answer
+      );
+
+      await updateDoc(
+        callRef,
+        {
+          status: "accepted",
+
+          answer: {
+            type: answer.type,
+            sdp: answer.sdp
+          }
+        }
+      );
+    }
+
+    await listenForCandidates(
+      id,
+      "callerCandidates"
+    );
+
+    listenToCallDocument(id);
+
+    callStatus.textContent =
+      "متصل";
+
+    startCallTimer();
+
+  } catch (error) {
+    console.error(
+      "Accept call:",
+      error
+    );
+
+    showToast(
+      "پذیرش تماس انجام نشد"
+    );
+
+    await cleanupCall();
+  }
+};
+
+
+/* =========================================================
+   Auto Login
+   ========================================================= */
+
+function restoreSavedName() {
+  const savedName =
+    localStorage.getItem(
+      "diary-user-name"
+    );
+
+  if (
+    savedName &&
+    userNameInput
+  ) {
+    userNameInput.value =
+      savedName;
+  }
+}
+
+
+/* =========================================================
+   Initialization
    ========================================================= */
 
 document.addEventListener(
-    "DOMContentLoaded",
-    () => {
+  "DOMContentLoaded",
+  () => {
+    setupTheme();
+    setupNavigation();
+    setupLogin();
+    setupSettings();
+    setupCallButtons();
+    restoreSavedName();
 
-        setupTheme();
+    const savedName =
+      localStorage.getItem(
+        "diary-user-name"
+      );
 
-        setupNavigation();
-
-        setupChat();
-
-
-        $("loginBtn")
-            ?.addEventListener(
-                "click",
-                login
-            );
-
-
-        $("logoutBtn")
-            ?.addEventListener(
-                "click",
-                logout
-            );
-
-
-        $("userName")
-            ?.addEventListener(
-                "keydown",
-                event => {
-
-                    if (
-                        event.key === "Enter"
-                    ) {
-
-                        login();
-
-                    }
-
-                }
-            );
-
-
-        restoreSession();
-
+    if (savedName) {
+      currentUserName =
+        savedName;
     }
+  }
 );
