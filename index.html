@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
+
+  <meta name="theme-color" content="#f5f7ff">
+
+  <title>دفترچه خاطرات مشترک</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- =========================
+       BACKGROUND
+  ========================== -->
+
+  <div class="aurora aurora-1"></div>
+  <div class="aurora aurora-2"></div>
+  <div class="aurora aurora-3"></div>
+
+
+  <!-- =========================
+       LOGIN
+  ========================== -->
+
+  <section id="loginScreen" class="screen login-screen">
+
+    <div class="login-card">
+
+      <div class="brand-icon">
+        <span>📖</span>
+      </div>
+
+      <div class="login-title">
+        دفترچه خاطرات
+      </div>
+
+      <p class="login-subtitle">
+        خاطره‌های مشترکتان را برای همیشه نگه دارید
+      </p>
+
+      <div class="input-group">
+
+        <label for="diaryCode">
+          کد دفترچه
+        </label>
+
+        <div class="input-wrapper">
+          <span class="input-icon">🔐</span>
+
+          <input
+            id="diaryCode"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="کد دفترچه را وارد کنید"
+          >
+        </div>
+
+      </div>
+
+
+      <div class="input-group">
+
+        <label for="userName">
+          نام شما
+        </label>
+
+        <div class="input-wrapper">
+          <span class="input-icon">👤</span>
+
+          <input
+            id="userName"
+            type="text"
+            autocomplete="name"
+            placeholder="نام خود را وارد کنید"
+          >
+        </div>
+
+      </div>
+
+
+      <button id="loginBtn" class="primary-btn">
+
+        <span class="btn-icon">✨</span>
+
+        <span>
+          ورود به دفترچه
+        </span>
+
+      </button>
+
+
+      <div class="login-note">
+        <span>🔒</span>
+        اطلاعات دفترچه بین دو نفر همگام می‌شود
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- =========================
+       MAIN APP
+  ========================== -->
+
+  <section id="appScreen" class="screen app-screen hidden">
+
+    <!-- HEADER -->
+
+    <header class="top-header">
+
+      <div class="header-left">
+
+        <div class="mini-logo">
+          📖
+        </div>
+
+        <div>
+
+          <div class="header-title">
+            دفترچه ما
+          </div>
+
+          <div
+            id="currentDiaryCode"
+            class="header-code"
+          >
+            ---
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="header-actions">
+
+        <button
+          id="themeToggle"
+          class="icon-btn"
+          type="button"
+          aria-label="تغییر تم"
+        >
+          🌙
+        </button>
+
+        <button
+          id="logoutBtn"
+          class="icon-btn danger-icon"
+          type="button"
+          aria-label="خروج"
+        >
+          ⎋
+        </button>
+
+      </div>
+
+    </header>
+
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+
+      <!-- =====================
+           HOME
+      ====================== -->
+
+      <section id="homePage" class="page active-page">
+
+        <div class="hero-card">
+
+          <div class="hero-content">
+
+            <span class="hero-small">
+              دفترچه خاطرات مشترک
+            </span>
+
+            <h1>
+              خاطره‌هایمان<br>
+              اینجا می‌مانند
+            </h1>
+
+            <p>
+              لحظه‌ها، حرف‌ها و خاطره‌هایی که
+              با هم ساخته‌ایم.
+            </p>
+
+          </div>
+
+          <div class="hero-decoration">
+            💜
+          </div>
+
+        </div>
+
+
+
+        <!-- BATTERY -->
+
+        <div class="battery-card">
+
+          <div class="battery-header">
+
+            <div>
+              <span class="section-label">
+                وضعیت دستگاه‌ها
+              </span>
+
+              <h3>
+                شارژ تلفن‌ها
+              </h3>
+            </div>
+
+            <span class="battery-symbol">
+              🔋
+            </span>
+
+          </div>
+
+
+          <div class="devices-battery">
+
+            <!-- MY DEVICE -->
+
+            <div class="device-battery">
+
+              <div class="device-top">
+
+                <span>
+                  📱 من
+                </span>
+
+                <strong id="myBattery">
+                  --
+                </strong>
+
+              </div>
+
+              <div class="battery-shell">
+
+                <div
+                  id="myBatteryFill"
+                  class="battery-fill"
+                ></div>
+
+              </div>
+
+              <div
+                id="myCharging"
+                class="charging-text"
+              >
+                در حال بررسی...
+              </div>
+
+            </div>
+
+
+            <div class="battery-divider"></div>
+
+
+            <!-- OTHER DEVICE -->
+
+            <div class="device-battery">
+
+              <div class="device-top">
+
+                <span id="otherName">
+                  نفر دیگر
+                </span>
+
+                <strong id="otherBattery">
+                  --
+                </strong>
+
+              </div>
+
+              <div class="battery-shell">
+
+                <div
+                  id="otherBatteryFill"
+                  class="battery-fill"
+                ></div>
+
+              </div>
+
+              <div
+                id="otherCharging"
+                class="charging-text"
+              >
+                منتظر اتصال...
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- STATS -->
+
+        <div class="stats-grid">
+
+          <div class="stat-card">
+
+            <div class="stat-icon purple">
+              💭
+            </div>
+
+            <div class="stat-number" id="memoryCount">
+              0
+            </div>
+
+            <div class="stat-title">
+              خاطره و پیام
+            </div>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <div class="stat-icon pink">
+              ❤️
+            </div>
+
+            <div class="stat-number" id="favoriteCount">
+              0
+            </div>
+
+            <div class="stat-title">
+              مورد علاقه
+            </div>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <div class="stat-icon blue">
+              📅
+            </div>
+
+            <div class="stat-number" id="daysCount">
+              0
+            </div>
+
+            <div class="stat-title">
+              روز ثبت شده
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- PARTNER CARD -->
+
+        <div class="partner-card">
+
+          <div class="partner-avatar">
+            💜
+          </div>
+
+          <div class="partner-info">
+
+            <span>
+              همراه دفترچه
+            </span>
+
+            <strong id="partnerName">
+              نفر دیگر
+            </strong>
+
+          </div>
+
+          <div
+            id="partnerStatus"
+            class="online-status"
+          >
+            ● آفلاین
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- =====================
+           CHAT
+      ====================== -->
+
+      <section id="chatPage" class="page chat-page">
+
+        <div class="chat-header">
+
+          <div class="chat-person">
+
+            <div class="chat-avatar">
+              💜
+            </div>
+
+            <div>
+
+              <strong id="chatPartnerName">
+                نفر دیگر
+              </strong>
+
+              <span id="chatStatus">
+                دفترچه مشترک
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div class="call-buttons">
+
+            <button
+              id="audioCallBtn"
+              class="call-btn"
+              type="button"
+              aria-label="تماس صوتی"
+            >
+              📞
+            </button>
+
+            <button
+              id="videoCallBtn"
+              class="call-btn video-call"
+              type="button"
+              aria-label="تماس تصویری"
+            >
+              📹
+            </button>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- MESSAGES -->
+
+        <div
+          id="messages"
+          class="messages"
+        ></div>
+
+
+        <!-- INPUT -->
+
+        <div class="chat-input-area">
+
+          <div class="chat-input-wrapper">
+
+            <textarea
+              id="messageInput"
+              rows="1"
+              maxlength="2000"
+              placeholder="پیامی برای او بنویس..."
+            ></textarea>
+
+            <button
+              id="sendMessageBtn"
+              class="send-btn"
+              type="button"
+              aria-label="ارسال پیام"
+            >
+              ➤
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- =====================
+           SETTINGS
+      ====================== -->
+
+      <section id="settingsPage" class="page">
+
+        <div class="settings-title">
+
+          <span>
+            ⚙️
+          </span>
+
+          <div>
+
+            <h2>
+              تنظیمات
+            </h2>
+
+            <p>
+              مدیریت دفترچه و ظاهر برنامه
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="settings-card">
+
+          <div class="setting-row">
+
+            <div class="setting-icon">
+              🌙
+            </div>
+
+            <div class="setting-info">
+
+              <strong>
+                حالت تاریک
+              </strong>
+
+              <span>
+                تغییر ظاهر دفترچه
+              </span>
+
+            </div>
+
+            <button
+              id="darkModeToggle"
+              class="switch"
+              type="button"
+            >
+              <span></span>
+            </button>
+
+          </div>
+
+
+          <div class="setting-row">
+
+            <div class="setting-icon">
+              🔐
+            </div>
+
+            <div class="setting-info">
+
+              <strong>
+                کد دفترچه
+              </strong>
+
+              <span id="diaryCodeDisplay">
+                ---
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div class="setting-row">
+
+            <div class="setting-icon">
+              👤
+            </div>
+
+            <div class="setting-info">
+
+              <strong>
+                نام شما
+              </strong>
+
+              <span id="myName">
+                ---
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="about-card">
+
+          <div class="about-icon">
+            📖
+          </div>
+
+          <div>
+
+            <strong>
+              دفترچه خاطرات مشترک
+            </strong>
+
+            <p>
+              خاطره‌هایتان را کنار هم نگه دارید.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+
+
+    <!-- =====================
+         BOTTOM NAV
+    ====================== -->
+
+    <nav class="bottom-nav">
+
+      <button
+        class="nav-item active"
+        data-page="homePage"
+        type="button"
+      >
+
+        <span class="nav-icon">
+          🏠
+        </span>
+
+        <span>
+          خانه
+        </span>
+
+      </button>
+
+
+      <button
+        class="nav-item"
+        data-page="chatPage"
+        type="button"
+      >
+
+        <span class="nav-icon">
+          💬
+        </span>
+
+        <span>
+          گفتگو
+        </span>
+
+      </button>
+
+
+      <button
+        class="nav-item"
+        data-page="settingsPage"
+        type="button"
+      >
+
+        <span class="nav-icon">
+          ⚙️
+        </span>
+
+        <span>
+          تنظیمات
+        </span>
+
+      </button>
+
+    </nav>
+
+  </section>
+
+
+
+  <!-- =========================
+       CALL SCREEN
+  ========================== -->
+
+  <section
+    id="callScreen"
+    class="call-screen hidden"
+  >
+
+    <div class="call-background"></div>
+
+
+    <div class="call-content">
+
+      <div class="call-top">
+
+        <span class="call-type-label">
+          تماس
+        </span>
+
+      </div>
+
+
+      <div class="call-user">
+
+        <div class="call-avatar">
+          💜
+        </div>
+
+        <h2 id="callTitle">
+          نفر دیگر
+        </h2>
+
+        <p id="callStatus">
+          در حال برقراری تماس...
+        </p>
+
+        <div
+          id="callTimer"
+          class="call-timer"
+        >
+          00:00
+        </div>
+
+      </div>
+
+
+      <!-- VIDEO -->
+
+      <div class="video-area">
+
+        <video
+          id="remoteVideo"
+          class="remote-video"
+          autoplay
+          playsinline
+        ></video>
+
+        <video
+          id="localVideo"
+          class="local-video"
+          autoplay
+          muted
+          playsinline
+        ></video>
+
+        <audio
+          id="remoteAudio"
+          autoplay
+        ></audio>
+
+      </div>
+
+
+      <!-- CALL CONTROLS -->
+
+      <div class="call-controls">
+
+        <button
+          id="micBtn"
+          class="call-control"
+          type="button"
+        >
+          🎙️
+        </button>
+
+
+        <button
+          id="cameraBtn"
+          class="call-control"
+          type="button"
+        >
+          📷
+        </button>
+
+
+        <button
+          id="speakerBtn"
+          class="call-control"
+          type="button"
+        >
+          🔊
+        </button>
+
+
+        <button
+          id="endCallBtn"
+          class="call-control end-call"
+          type="button"
+        >
+          ☎
+        </button>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- =========================
+       INCOMING CALL
+  ========================== -->
+
+  <div
+    id="incomingCallModal"
+    class="modal-overlay hidden"
+  >
+
+    <div class="incoming-call-card">
+
+      <div class="incoming-ring">
+        📞
+      </div>
+
+      <span class="incoming-label">
+        تماس ورودی
+      </span>
+
+      <h2 id="incomingCallerName">
+        نفر دیگر
+      </h2>
+
+      <p id="incomingCallType">
+        تماس صوتی
+      </p>
+
+
+      <div class="incoming-actions">
+
+        <button
+          id="rejectCallBtn"
+          class="reject-btn"
+          type="button"
+        >
+          <span>✕</span>
+          رد تماس
+        </button>
+
+
+        <button
+          id="acceptCallBtn"
+          class="accept-btn"
+          type="button"
+        >
+          <span>✓</span>
+          پاسخ
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- =========================
+       TOAST
+  ========================== -->
+
+  <div
+    id="toast"
+    class="toast"
+  >
+    <span id="toastIcon">✓</span>
+    <span id="toastMessage"></span>
+  </div>
+
+
+
+  <!-- Firebase / App -->
+
+  <script
+    type="module"
+    src="script.js"
+  ></script>
+
+</body>
+</html>
