@@ -2,190 +2,310 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    >
 
     <title>دفترچه خاطرات ما ❤️</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Font -->
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
 
-    <link rel="stylesheet" href="./style.css">
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet"
+    >
+
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div class="aurora aurora-1"></div>
-<div class="aurora aurora-2"></div>
-<div class="aurora aurora-3"></div>
+<!-- =====================================================
+     BACKGROUND
+===================================================== -->
 
-<!-- ================= LOGIN ================= -->
+<div class="aurora-bg">
 
-<section id="loginScreen" class="screen login-screen">
+    <div class="aurora aurora-one"></div>
+    <div class="aurora aurora-two"></div>
+    <div class="aurora aurora-three"></div>
 
-    <div class="login-card">
+</div>
 
-        <div class="book-icon">
-            📖
+
+<!-- =====================================================
+     LOGIN SCREEN
+===================================================== -->
+
+<section
+    id="loginScreen"
+    class="login-screen"
+>
+
+    <div class="login-container">
+
+        <div class="login-logo">
+            <div class="logo-book">
+                📖
+            </div>
         </div>
 
-        <h1>دفترچه خاطرات ما</h1>
+        <h1>
+            دفترچه خاطرات ما
+        </h1>
 
-        <p class="login-subtitle">
+        <p class="login-description">
             خاطره‌هایمان اینجا می‌مانند ❤️
         </p>
 
+
         <div class="login-form">
 
-            <div class="input-group">
+            <div class="form-group">
+
                 <label for="userName">
                     نام شما
                 </label>
 
                 <input
-                    id="userName"
                     type="text"
+                    id="userName"
                     maxlength="40"
-                    autocomplete="name"
-                    placeholder="نام خودتان را وارد کنید"
+                    autocomplete="off"
+                    placeholder="نام خود را وارد کنید"
                 >
+
             </div>
 
-            <button id="loginBtn" class="primary-btn">
-                <span>ورود به دفترچه</span>
-                <span>✨</span>
+
+            <button
+                id="loginBtn"
+                class="main-login-btn"
+                type="button"
+            >
+
+                <span>
+                    ورود به دفترچه
+                </span>
+
+                <span class="btn-icon">
+                    ✨
+                </span>
+
             </button>
 
         </div>
 
-        <p class="login-note">
-            این دفترچه فقط برای شما و نفر دیگر شماست.
-        </p>
+
+        <div class="login-footer">
+
+            <span>
+                🔐
+            </span>
+
+            <span>
+                فضای خصوصی مشترک شما
+            </span>
+
+        </div>
 
     </div>
 
 </section>
 
 
-<!-- ================= APP ================= -->
 
-<section id="appScreen" class="app-screen hidden">
+<!-- =====================================================
+     MAIN APP
+===================================================== -->
 
-    <!-- HEADER -->
+<section
+    id="appScreen"
+    class="app-screen hidden"
+>
 
-    <header class="top-header">
 
-        <div>
-            <div class="small-label">
+    <!-- =================================================
+         TOP HEADER
+    ================================================= -->
+
+    <header class="app-header">
+
+        <div class="header-title">
+
+            <span class="header-small-title">
                 دفترچه مشترک
-            </div>
+            </span>
 
             <h2>
                 خاطره‌هایمان اینجا می‌مانند ❤️
             </h2>
+
         </div>
 
-        <button id="themeToggle" class="icon-btn">
+
+        <button
+            id="themeToggle"
+            class="header-icon-btn"
+            type="button"
+            aria-label="تغییر حالت نمایش"
+        >
             🌙
         </button>
 
     </header>
 
 
-    <!-- ================= HOME ================= -->
 
-    <main id="homePage" class="page active">
+    <!-- =================================================
+         HOME PAGE
+    ================================================= -->
 
-        <!-- BATTERY -->
+    <main
+        id="homePage"
+        class="page active"
+    >
 
-        <div class="battery-card">
 
-            <div class="battery-person">
+        <!-- =============================================
+             BATTERY CARD
+        ============================================== -->
 
-                <div class="phone">
-                    <div class="phone-screen">
-                        <span>📱</span>
+        <section class="battery-card">
+
+            <!-- MY DEVICE -->
+
+            <div class="battery-user">
+
+                <div class="device-icon">
+                    <div class="device-inner">
+                        📱
                     </div>
                 </div>
 
-                <div class="battery-info">
 
-                    <strong id="myName">
-                        شما
-                    </strong>
+                <div class="battery-details">
 
-                    <div class="battery-row">
+                    <div class="battery-name">
+                        <span id="myName">
+                            شما
+                        </span>
+                    </div>
 
-                        <div class="battery">
+
+                    <div class="battery-line">
+
+                        <div class="battery-body">
+
                             <div
                                 id="myBatteryFill"
                                 class="battery-fill"
                             ></div>
+
                         </div>
 
-                        <span id="myBatteryText">
+                        <span
+                            id="myBatteryText"
+                            class="battery-percent"
+                        >
                             —
                         </span>
 
                     </div>
 
-                    <small id="myCharging">
-                        وضعیت باتری نامشخص
-                    </small>
+
+                    <div
+                        id="myCharging"
+                        class="battery-status"
+                    >
+                        در حال بررسی...
+                    </div>
 
                 </div>
 
             </div>
 
 
-            <div class="battery-divider"></div>
+            <div class="battery-separator"></div>
 
 
-            <div class="battery-person">
+            <!-- OTHER DEVICE -->
 
-                <div class="phone">
-                    <div class="phone-screen">
-                        <span>📱</span>
+            <div class="battery-user">
+
+                <div class="device-icon other-device">
+                    <div class="device-inner">
+                        📱
                     </div>
                 </div>
 
-                <div class="battery-info">
 
-                    <strong id="otherName">
-                        نفر دیگر
-                    </strong>
+                <div class="battery-details">
 
-                    <div class="battery-row">
+                    <div class="battery-name">
+                        <span id="otherName">
+                            نفر دیگر
+                        </span>
+                    </div>
 
-                        <div class="battery">
+
+                    <div class="battery-line">
+
+                        <div class="battery-body">
+
                             <div
                                 id="otherBatteryFill"
                                 class="battery-fill"
                             ></div>
+
                         </div>
 
-                        <span id="otherBatteryText">
+                        <span
+                            id="otherBatteryText"
+                            class="battery-percent"
+                        >
                             —
                         </span>
 
                     </div>
 
-                    <small id="otherCharging">
+
+                    <div
+                        id="otherCharging"
+                        class="battery-status"
+                    >
                         آفلاین
-                    </small>
+                    </div>
 
                 </div>
 
             </div>
 
-        </div>
+        </section>
 
 
-        <!-- STATS -->
 
-        <div class="stats-grid">
+        <!-- =============================================
+             STATISTICS
+        ============================================== -->
 
-            <div class="stat-card">
+        <section class="stats-container">
+
+
+            <div class="stat-box">
 
                 <div class="stat-icon">
                     💌
@@ -202,7 +322,7 @@
             </div>
 
 
-            <div class="stat-card">
+            <div class="stat-box">
 
                 <div class="stat-icon">
                     ❤️
@@ -219,7 +339,7 @@
             </div>
 
 
-            <div class="stat-card">
+            <div class="stat-box">
 
                 <div class="stat-icon">
                     📅
@@ -235,14 +355,18 @@
 
             </div>
 
-        </div>
+
+        </section>
 
 
-        <!-- HOME BOX -->
 
-        <div class="glass-card welcome-card">
+        <!-- =============================================
+             WELCOME CARD
+        ============================================== -->
 
-            <div class="welcome-icon">
+        <section class="welcome-card">
+
+            <div class="welcome-symbol">
                 💜
             </div>
 
@@ -251,75 +375,105 @@
             </h3>
 
             <p>
-                هر چیزی که اینجا می‌نویسید،
-                در فضای آنلاین ذخیره می‌شود و
-                روی دستگاه دیگر هم قابل مشاهده است.
+                اینجا جایی برای نگه داشتن
+                خاطره‌ها، پیام‌ها و لحظه‌های
+                قشنگ شماست.
             </p>
 
+
             <button
-                class="secondary-btn"
+                class="go-chat-btn"
                 data-page="chatPage"
+                type="button"
             >
-                رفتن به گفتگو 💬
+
+                <span>
+                    رفتن به گفتگو
+                </span>
+
+                <span>
+                    💬
+                </span>
+
             </button>
 
-        </div>
+        </section>
 
     </main>
 
 
-    <!-- ================= CHAT ================= -->
 
-    <main id="chatPage" class="page">
+    <!-- =================================================
+         CHAT PAGE
+    ================================================= -->
 
-        <div class="chat-header">
+    <main
+        id="chatPage"
+        class="page"
+    >
 
-            <div class="avatar">
+
+        <!-- CHAT HEADER -->
+
+        <section class="chat-top">
+
+            <div class="chat-user-avatar">
                 ❤️
             </div>
 
-            <div>
+
+            <div class="chat-user-info">
 
                 <strong id="chatPartnerName">
                     نفر دیگر
                 </strong>
 
-                <small id="chatOnlineStatus">
+                <span id="chatOnlineStatus">
                     در حال بررسی وضعیت...
-                </small>
+                </span>
 
             </div>
 
-            <div class="chat-actions">
+
+            <div class="chat-call-buttons">
 
                 <button
                     id="audioCallBtn"
-                    class="icon-btn"
-                    title="تماس صوتی"
+                    class="chat-call-btn"
+                    type="button"
+                    aria-label="تماس صوتی"
                 >
                     📞
                 </button>
 
+
                 <button
                     id="videoCallBtn"
-                    class="icon-btn"
-                    title="تماس تصویری"
+                    class="chat-call-btn"
+                    type="button"
+                    aria-label="تماس تصویری"
                 >
                     📹
                 </button>
 
             </div>
 
-        </div>
+        </section>
 
 
-        <div
+
+        <!-- MESSAGES -->
+
+        <section
             id="messages"
-            class="messages"
+            class="messages-container"
         >
 
             <div class="empty-chat">
-                <div>💌</div>
+
+                <div class="empty-chat-icon">
+                    💌
+                </div>
 
                 <h3>
                     هنوز پیامی ندارید
@@ -328,12 +482,16 @@
                 <p>
                     اولین پیام را شما بفرستید.
                 </p>
+
             </div>
 
-        </div>
+        </section>
 
 
-        <div class="chat-input-area">
+
+        <!-- MESSAGE INPUT -->
+
+        <section class="message-input-wrapper">
 
             <textarea
                 id="messageInput"
@@ -342,259 +500,395 @@
                 placeholder="یک خاطره یا پیام بنویسید..."
             ></textarea>
 
+
             <button
                 id="sendMessageBtn"
-                class="send-btn"
+                class="send-message-btn"
+                type="button"
+                aria-label="ارسال پیام"
             >
                 ➤
             </button>
 
-        </div>
+        </section>
 
     </main>
 
 
-    <!-- ================= SETTINGS ================= -->
 
-    <main id="settingsPage" class="page">
+    <!-- =================================================
+         SETTINGS PAGE
+    ================================================= -->
 
-        <div class="settings-title">
+    <main
+        id="settingsPage"
+        class="page"
+    >
+
+
+        <section class="settings-header">
 
             <h2>
                 تنظیمات
             </h2>
 
             <p>
-                شخصی‌سازی دفترچه
+                تنظیمات دفترچه خاطرات
             </p>
 
-        </div>
+        </section>
 
 
-        <div class="settings-list">
 
-            <div class="setting-item">
+        <section class="settings-card">
 
-                <div class="setting-icon">
+
+            <!-- DARK MODE -->
+
+            <div class="setting-row">
+
+                <div class="setting-row-icon">
                     🌙
                 </div>
 
-                <div class="setting-text">
+
+                <div class="setting-row-info">
 
                     <strong>
                         حالت تاریک
                     </strong>
 
-                    <small>
+                    <span>
                         تغییر ظاهر دفترچه
-                    </small>
+                    </span>
 
                 </div>
 
-                <label class="switch">
+
+                <label class="toggle-switch">
 
                     <input
-                        id="darkModeToggle"
                         type="checkbox"
+                        id="darkModeToggle"
                     >
 
-                    <span></span>
+                    <span class="toggle-slider"></span>
 
                 </label>
 
             </div>
 
 
-            <div class="setting-item">
 
-                <div class="setting-icon">
+            <!-- NAME -->
+
+            <div class="setting-row">
+
+                <div class="setting-row-icon">
                     👤
                 </div>
 
-                <div class="setting-text">
+
+                <div class="setting-row-info">
 
                     <strong>
                         نام شما
                     </strong>
 
-                    <small id="settingsName">
+                    <span id="settingsName">
                         —
-                    </small>
+                    </span>
 
                 </div>
 
             </div>
 
 
-            <button
-                id="logoutBtn"
-                class="logout-btn"
-            >
-                خروج از حساب
-            </button>
 
-        </div>
+            <!-- PRIVACY -->
+
+            <div class="setting-row">
+
+                <div class="setting-row-icon">
+                    🔐
+                </div>
+
+
+                <div class="setting-row-info">
+
+                    <strong>
+                        دفترچه خصوصی
+                    </strong>
+
+                    <span>
+                        فقط شما و نفر دیگر
+                    </span>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+
+        <!-- LOGOUT -->
+
+        <button
+            id="logoutBtn"
+            class="logout-button"
+            type="button"
+        >
+
+            <span>
+                خروج از دفترچه
+            </span>
+
+            <span>
+                🚪
+            </span>
+
+        </button>
 
     </main>
 
 
-    <!-- ================= BOTTOM NAV ================= -->
 
-    <nav class="bottom-nav">
+    <!-- =================================================
+         BOTTOM NAVIGATION
+    ================================================= -->
+
+    <nav class="bottom-navigation">
+
 
         <button
-            class="nav-btn active"
+            class="nav-item active"
             data-page="homePage"
+            type="button"
         >
-            <span>🏠</span>
-            <small>خانه</small>
+
+            <span class="nav-icon">
+                🏠
+            </span>
+
+            <span class="nav-label">
+                خانه
+            </span>
+
         </button>
 
+
         <button
-            class="nav-btn"
+            class="nav-item"
             data-page="chatPage"
+            type="button"
         >
-            <span>💬</span>
-            <small>گفتگو</small>
+
+            <span class="nav-icon">
+                💬
+            </span>
+
+            <span class="nav-label">
+                گفتگو
+            </span>
+
         </button>
 
+
         <button
-            class="nav-btn"
+            class="nav-item"
             data-page="settingsPage"
+            type="button"
         >
-            <span>⚙️</span>
-            <small>تنظیمات</small>
+
+            <span class="nav-icon">
+                ⚙️
+            </span>
+
+            <span class="nav-label">
+                تنظیمات
+            </span>
+
         </button>
+
 
     </nav>
 
 </section>
 
 
-<!-- ================= CALL SCREEN ================= -->
+
+<!-- =====================================================
+     CALL SCREEN
+===================================================== -->
 
 <section
     id="callScreen"
     class="call-screen hidden"
 >
 
-    <div class="call-background"></div>
 
-    <div class="call-content">
+    <!-- REMOTE VIDEO -->
 
-        <div class="call-avatar">
+    <video
+        id="remoteVideo"
+        class="remote-video"
+        autoplay
+        playsinline
+    ></video>
+
+
+    <!-- CALL CONTENT -->
+
+    <div class="call-overlay">
+
+        <div class="call-user-avatar">
             ❤️
         </div>
+
 
         <h2 id="callTitle">
             نفر دیگر
         </h2>
 
+
         <p id="callStatus">
             در حال برقراری تماس...
         </p>
 
-        <div id="callTimer">
+
+        <div
+            id="callTimer"
+            class="call-timer"
+        >
             00:00
         </div>
 
-        <video
-            id="remoteVideo"
-            autoplay
-            playsinline
-        ></video>
-
-        <video
-            id="localVideo"
-            autoplay
-            muted
-            playsinline
-        ></video>
-
-        <audio
-            id="remoteAudio"
-            autoplay
-        ></audio>
+    </div>
 
 
-        <div class="call-controls">
+    <!-- LOCAL VIDEO -->
 
-            <button
-                id="micBtn"
-                class="call-control"
-            >
-                🎙️
-            </button>
+    <video
+        id="localVideo"
+        class="local-video"
+        autoplay
+        muted
+        playsinline
+    ></video>
 
-            <button
-                id="cameraBtn"
-                class="call-control"
-            >
-                📹
-            </button>
 
-            <button
-                id="speakerBtn"
-                class="call-control active"
-            >
-                🔊
-            </button>
+    <!-- AUDIO -->
 
-            <button
-                id="endCallBtn"
-                class="call-control end"
-            >
-                📞
-            </button>
+    <audio
+        id="remoteAudio"
+        autoplay
+    ></audio>
 
-        </div>
+
+    <!-- CALL CONTROLS -->
+
+    <div class="call-controls">
+
+
+        <button
+            id="micBtn"
+            class="call-control"
+            type="button"
+            aria-label="میکروفون"
+        >
+            🎙️
+        </button>
+
+
+        <button
+            id="cameraBtn"
+            class="call-control"
+            type="button"
+            aria-label="دوربین"
+        >
+            📹
+        </button>
+
+
+        <button
+            id="speakerBtn"
+            class="call-control active"
+            type="button"
+            aria-label="بلندگو"
+        >
+            🔊
+        </button>
+
+
+        <button
+            id="endCallBtn"
+            class="call-control end-call"
+            type="button"
+            aria-label="پایان تماس"
+        >
+            📞
+        </button>
+
 
     </div>
 
 </section>
 
 
-<!-- ================= INCOMING CALL ================= -->
+
+<!-- =====================================================
+     INCOMING CALL MODAL
+===================================================== -->
 
 <div
     id="incomingCallModal"
-    class="modal hidden"
+    class="incoming-modal hidden"
 >
 
-    <div class="modal-card">
+    <div class="incoming-card">
 
-        <div class="incoming-icon">
+        <div class="incoming-call-icon">
             📞
         </div>
+
 
         <h2>
             تماس ورودی
         </h2>
 
+
         <p id="incomingCallerName">
             نفر دیگر
         </p>
 
-        <small id="incomingCallType">
+
+        <span id="incomingCallType">
             تماس صوتی
-        </small>
+        </span>
 
 
         <div class="incoming-actions">
 
+
             <button
                 id="rejectCallBtn"
-                class="reject-btn"
+                class="reject-call"
+                type="button"
             >
                 رد تماس
             </button>
 
+
             <button
                 id="acceptCallBtn"
-                class="accept-btn"
+                class="accept-call"
+                type="button"
             >
                 پاسخ
             </button>
+
 
         </div>
 
@@ -603,19 +897,29 @@
 </div>
 
 
-<!-- ================= TOAST ================= -->
+
+<!-- =====================================================
+     TOAST
+===================================================== -->
 
 <div
     id="toast"
-    class="toast"
+    class="toast-message"
 >
+
     <span id="toastText"></span>
+
 </div>
 
 
+
+<!-- =====================================================
+     FIREBASE / MAIN JAVASCRIPT
+===================================================== -->
+
 <script
     type="module"
-    src="./script.js"
+    src="script.js"
 ></script>
 
 </body>
