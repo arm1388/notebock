@@ -1,18 +1,19 @@
 /* =========================================================
    دفترچه خاطرات مشترک
    Firebase + Firestore + Realtime Database + WebRTC
+   Diary: asna&amir8890
 ========================================================= */
 
-import {
-  initializeApp
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { initializeApp } from
+  "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 
 import {
   getAuth,
   signInAnonymously,
   onAuthStateChanged,
   signOut
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+} from
+  "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
 import {
   getFirestore,
@@ -28,7 +29,8 @@ import {
   serverTimestamp,
   getDocs,
   where
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+} from
+  "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 import {
   getDatabase,
@@ -38,12 +40,15 @@ import {
   onValue,
   onDisconnect,
   serverTimestamp as rtdbServerTimestamp
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+} from
+  "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
 
 /* =========================================================
-   FIREBASE CONFIG
+   CONFIG
 ========================================================= */
+
+const FIXED_DIARY_CODE = "asna&amir8890";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBvrnbdz69356LOv3LwY-dFlIVZG8zdQ_4",
@@ -56,9 +61,20 @@ const firebaseConfig = {
   databaseURL: "https://notebock-d4ec7-default-rtdb.firebaseio.com/"
 };
 
+const rtcConfig = {
+  iceServers: [
+    {
+      urls: [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302"
+      ]
+    }
+  ]
+};
+
 
 /* =========================================================
-   INITIALIZE FIREBASE
+   FIREBASE
 ========================================================= */
 
 const app = initializeApp(firebaseConfig);
@@ -69,12 +85,11 @@ const rtdb = getDatabase(app);
 
 
 /* =========================================================
-   GLOBAL STATE
+   STATE
 ========================================================= */
 
 let currentUser = null;
-
-let diaryId = "";
+let diaryId = FIXED_DIARY_CODE;
 let currentName = "";
 
 let members = [];
@@ -90,23 +105,10 @@ let unsubscribeCandidates = null;
 
 let currentMessages = [];
 
-let toastTimer = null;
-
-
-/* =========================================================
-   BATTERY
-========================================================= */
-
 let myBatteryLevel = null;
 let myCharging = false;
 
-
-/* =========================================================
-   WEBRTC STATE
-========================================================= */
-
 let peerConnection = null;
-
 let localStream = null;
 let remoteStream = null;
 
@@ -123,54 +125,31 @@ let micEnabled = false;
 let cameraEnabled = false;
 let speakerEnabled = true;
 
-
-/* =========================================================
-   RTC CONFIG
-========================================================= */
-
-const rtcConfig = {
-  iceServers: [
-    {
-      urls: [
-        "stun:stun.l.google.com:19302",
-        "stun:stun1.l.google.com:19302"
-      ]
-    }
-  ]
-};
+let toastTimer = null;
 
 
 /* =========================================================
-   DOM HELPERS
+   DOM
 ========================================================= */
 
 function $(id) {
   return document.getElementById(id);
 }
 
-
 function getMessagesContainer() {
-  return (
-    $("messages") ||
-    $("chatMessages") ||
-    $("messagesContainer")
-  );
+  return $("messages") ||
+         $("chatMessages") ||
+         $("messagesContainer");
 }
-
 
 function getMessageInput() {
-  return (
-    $("messageInput") ||
-    $("chatInput")
-  );
+  return $("messageInput") ||
+         $("chatInput");
 }
 
-
 function getSendButton() {
-  return (
-    $("sendMessageBtn") ||
-    $("sendBtn")
-  );
+  return $("sendMessageBtn") ||
+         $("sendBtn");
 }
 
 
@@ -185,7 +164,7 @@ function showToast(message, icon = "✓") {
   const toastIcon = $("toastIcon");
 
   if (!toast || !toastMessage) {
-    alert(message);
+    console.log(message);
     return;
   }
 
@@ -206,7 +185,7 @@ function showToast(message, icon = "✓") {
 
 
 /* =========================================================
-   SAFE TEXT
+   HELPERS
 ========================================================= */
 
 function escapeHTML(value) {
@@ -219,29 +198,27 @@ function escapeHTML(value) {
 }
 
 
-/* =========================================================
-   PERSIAN DATE
-========================================================= */
-
 function formatDate(timestamp) {
 
-  if (!timestamp) {
-    return "";
-  }
+  if (!timestamp) return "";
 
   let date;
 
-  if (timestamp.toDate) {
-    date = timestamp.toDate();
-  } else if (timestamp instanceof Date) {
-    date = timestamp;
-  } else {
-    date = new Date(timestamp);
-  }
+  try {
 
-  if (isNaN(date.getTime())) {
+    if (timestamp.toDate) {
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else {
+      date = new Date(timestamp);
+    }
+
+  } catch {
     return "";
   }
+
+  if (isNaN(date.getTime())) return "";
 
   return new Intl.DateTimeFormat(
     "fa-IR",
@@ -253,44 +230,90 @@ function formatDate(timestamp) {
 }
 
 
+function normalizeDiaryCode(code) {
+
+  return String(code || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
+
+
+/* =========================================================
+   FIREBASE ERROR
+========================================================= */
+
+function firebaseErrorMessage(error) {
+
+  console.error(error);
+
+  const code = error?.code || "";
+
+  if (
+    code.includes("permission-denied") ||
+    code.includes("PERMISSION_DENIED")
+  ) {
+    return "دسترسی به دفترچه امکان‌پذیر نیست";
+  }
+
+  if (
+    code.includes("network") ||
+    code.includes("unavailable")
+  ) {
+    return "اتصال اینترنت را بررسی کنید";
+  }
+
+  if (code.includes("auth")) {
+    return "ورود به Firebase انجام نشد";
+  }
+
+  return "خطایی رخ داد؛ دوباره امتحان کنید";
+}
+
+
 /* =========================================================
    LOGIN
 ========================================================= */
 
 async function login() {
 
-  const codeInput = $("diaryCode");
   const nameInput = $("userName");
+  const codeInput = $("diaryCode");
 
-  if (!codeInput || !nameInput) {
-    return;
-  }
+  if (!nameInput) return;
 
-  const code = codeInput.value.trim();
   const name = nameInput.value.trim();
 
-  if (!code) {
-    showToast("کد دفترچه را وارد کنید", "⚠️");
-    codeInput.focus();
-    return;
+  /* کد دفترچه همیشه ثابت است */
+
+  diaryId = FIXED_DIARY_CODE;
+
+  if (codeInput) {
+    codeInput.value = FIXED_DIARY_CODE;
+    codeInput.readOnly = true;
   }
 
   if (!name) {
-    showToast("نام خود را وارد کنید", "⚠️");
-    nameInput.focus();
-    return;
-  }
 
-  if (code.length < 3) {
-    showToast("کد دفترچه باید حداقل ۳ کاراکتر باشد", "⚠️");
+    showToast(
+      "نام خود را وارد کنید",
+      "⚠️"
+    );
+
+    nameInput.focus();
+
     return;
   }
 
   if (name.length < 2) {
-    showToast("نام وارد شده کوتاه است", "⚠️");
+
+    showToast(
+      "نام وارد شده کوتاه است",
+      "⚠️"
+    );
+
     return;
   }
-
 
   const button = $("loginBtn");
 
@@ -299,10 +322,11 @@ async function login() {
     button.style.opacity = "0.6";
   }
 
-
   try {
 
-    if (!currentUser) {
+    /* ورود Anonymous */
+
+    if (!auth.currentUser) {
       await signInAnonymously(auth);
     }
 
@@ -312,11 +336,13 @@ async function login() {
       throw new Error("AUTH_FAILED");
     }
 
-
-    diaryId = normalizeDiaryCode(code);
-
     currentName = name;
 
+    /*
+      اول Member خودمان را می‌خوانیم.
+      Rules جدید اجازه می‌دهد هر کاربر
+      Member خودش را هنگام ورود بخواند.
+    */
 
     const memberRef = doc(
       db,
@@ -326,25 +352,31 @@ async function login() {
       currentUser.uid
     );
 
-    const memberSnapshot = await getDoc(memberRef);
+    const memberSnapshot =
+      await getDoc(memberRef);
 
 
     if (!memberSnapshot.exists()) {
 
-      await setDoc(memberRef, {
-        uid: currentUser.uid,
-        name: currentName,
-        createdAt: serverTimestamp(),
-        lastSeen: serverTimestamp()
-      });
+      await setDoc(
+        memberRef,
+        {
+          uid: currentUser.uid,
+          name: currentName,
+          createdAt: serverTimestamp(),
+          lastSeen: serverTimestamp()
+        }
+      );
 
     } else {
 
-      await updateDoc(memberRef, {
-        name: currentName,
-        lastSeen: serverTimestamp()
-      });
-
+      await updateDoc(
+        memberRef,
+        {
+          name: currentName,
+          lastSeen: serverTimestamp()
+        }
+      );
     }
 
 
@@ -370,7 +402,10 @@ async function login() {
 
   } catch (error) {
 
-    console.error("LOGIN ERROR:", error);
+    console.error(
+      "LOGIN ERROR:",
+      error
+    );
 
     showToast(
       firebaseErrorMessage(error),
@@ -383,45 +418,7 @@ async function login() {
       button.disabled = false;
       button.style.opacity = "1";
     }
-
   }
-}
-
-
-/* =========================================================
-   NORMALIZE DIARY CODE
-========================================================= */
-
-function normalizeDiaryCode(code) {
-
-  return code
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "");
-}
-
-
-/* =========================================================
-   FIREBASE ERROR MESSAGE
-========================================================= */
-
-function firebaseErrorMessage(error) {
-
-  const code = error?.code || "";
-
-  if (code.includes("permission-denied")) {
-    return "دسترسی به دفترچه امکان‌پذیر نیست";
-  }
-
-  if (code.includes("network")) {
-    return "اتصال اینترنت را بررسی کنید";
-  }
-
-  if (code.includes("auth")) {
-    return "ورود به Firebase انجام نشد";
-  }
-
-  return "خطایی رخ داد؛ دوباره امتحان کنید";
 }
 
 
@@ -442,7 +439,6 @@ function openApp() {
     appScreen.classList.remove("hidden");
   }
 
-
   if ($("currentDiaryCode")) {
     $("currentDiaryCode").textContent = diaryId;
   }
@@ -456,13 +452,14 @@ function openApp() {
   }
 
   if ($("chatStatus")) {
-    $("chatStatus").textContent = "دفترچه مشترک";
+    $("chatStatus").textContent =
+      "دفترچه مشترک";
   }
 }
 
 
 /* =========================================================
-   SETUP EVERYTHING
+   SETUP
 ========================================================= */
 
 async function setupEverything() {
@@ -485,6 +482,8 @@ async function setupEverything() {
 
   setupChat();
 
+  setupCallButtons();
+
   updateMyBatteryUI();
 
   updateCallButtonsUI();
@@ -497,10 +496,7 @@ async function setupEverything() {
 
 function subscribeMembers() {
 
-  if (!diaryId) {
-    return;
-  }
-
+  if (!diaryId || !currentUser) return;
 
   const membersRef = collection(
     db,
@@ -509,316 +505,246 @@ function subscribeMembers() {
     "members"
   );
 
+  unsubscribeMembers =
+    onSnapshot(
+      membersRef,
+      snapshot => {
 
-  unsubscribeMembers = onSnapshot(
-    membersRef,
-    snapshot => {
+        members = [];
 
-      members = [];
+        snapshot.forEach(item => {
 
-      snapshot.forEach(item => {
+          members.push({
+            id: item.id,
+            ...item.data()
+          });
 
-        members.push({
-          id: item.id,
-          ...item.data()
         });
 
-      });
+        otherMember =
+          members.find(
+            member =>
+              member.uid !== currentUser.uid
+          ) || null;
+
+        updatePartnerUI();
+
+        /*
+          بعد از پیدا شدن نفر دوم
+          Presence و Battery او را فعال می‌کنیم.
+        */
+
+        if (otherMember) {
+
+          subscribeOtherPresence();
+
+          subscribeOtherBattery();
+
+        }
+      },
+
+      error => {
+
+        console.error(
+          "MEMBERS ERROR:",
+          error
+        );
+
+      }
+    );
+}
 
 
-      otherMember =
-        members.find(
-          member =>
-            member.uid !== currentUser?.uid
-        ) || null;
+function getOtherMember() {
 
-
-      updatePartnerUI();
-
-    },
-    error => {
-
-      console.error(
-        "MEMBERS ERROR:",
-        error
-      );
-
-    }
+  return (
+    members.find(
+      member =>
+        member.uid !== currentUser?.uid
+    ) || null
   );
 }
 
 
-/* =========================================================
-   PARTNER UI
-========================================================= */
-
 function updatePartnerUI() {
+
+  otherMember = getOtherMember();
 
   const name =
     otherMember?.name ||
     "نفر دیگر";
 
+  if ($("otherName")) {
+    $("otherName").textContent = name;
+  }
 
-  const ids = [
-    "otherName",
-    "partnerName",
-    "chatPartnerName"
-  ];
+  if ($("partnerName")) {
+    $("partnerName").textContent = name;
+  }
 
-
-  ids.forEach(id => {
-
-    const element = $(id);
-
-    if (element) {
-      element.textContent = name;
-    }
-
-  });
-
+  if ($("chatPartnerName")) {
+    $("chatPartnerName").textContent = name;
+  }
 
   if ($("partnerStatus")) {
-
     $("partnerStatus").textContent =
-      "● در حال بررسی...";
+      otherMember
+        ? "متصل به دفترچه"
+        : "منتظر ورود نفر دوم";
+  }
 
+  if ($("chatStatus")) {
+    $("chatStatus").textContent =
+      otherMember
+        ? "آنلاین در دفترچه مشترک"
+        : "منتظر ورود نفر دوم";
   }
 }
 
 
 /* =========================================================
-   MESSAGES
+   CHAT
 ========================================================= */
 
 function subscribeMessages() {
 
-  if (!diaryId) {
-    return;
-  }
+  if (!diaryId) return;
 
+  const messagesRef =
+    collection(
+      db,
+      "diaries",
+      diaryId,
+      "messages"
+    );
 
-  const messagesRef = collection(
-    db,
-    "diaries",
-    diaryId,
-    "messages"
-  );
+  const messagesQuery =
+    query(
+      messagesRef,
+      orderBy("createdAt", "asc")
+    );
 
+  unsubscribeMessages =
+    onSnapshot(
+      messagesQuery,
+      snapshot => {
 
-  const messagesQuery = query(
-    messagesRef,
-    orderBy("createdAt", "asc")
-  );
+        currentMessages = [];
 
+        snapshot.forEach(item => {
 
-  unsubscribeMessages = onSnapshot(
-    messagesQuery,
-    snapshot => {
+          currentMessages.push({
+            id: item.id,
+            ...item.data()
+          });
 
-      currentMessages = [];
-
-      snapshot.forEach(item => {
-
-        currentMessages.push({
-          id: item.id,
-          ...item.data()
         });
 
-      });
+        renderMessages();
 
+        updateStats();
 
-      renderMessages();
+      },
 
-      updateStats();
+      error => {
 
-    },
-    error => {
+        console.error(
+          "MESSAGES ERROR:",
+          error
+        );
 
-      console.error(
-        "MESSAGES ERROR:",
-        error
-      );
-
-      showToast(
-        "خطا در دریافت پیام‌ها",
-        "❌"
-      );
-
-    }
-  );
+      }
+    );
 }
 
-
-/* =========================================================
-   RENDER MESSAGES
-========================================================= */
 
 function renderMessages() {
 
-  const container = getMessagesContainer();
+  const container =
+    getMessagesContainer();
 
-  if (!container) {
-    return;
-  }
-
-
-  container.innerHTML = "";
-
+  if (!container) return;
 
   if (!currentMessages.length) {
 
-    const empty = document.createElement("div");
-
-    empty.className = "empty-messages";
-
-    empty.innerHTML = `
-      <div style="
-        text-align:center;
-        padding:50px 20px;
-        color:var(--text-soft);
-      ">
-        <div style="font-size:42px;margin-bottom:12px;">
-          💜
-        </div>
-
-        <div style="
-          font-weight:700;
-          font-size:13px;
-        ">
-          هنوز پیامی اینجا نیست
-        </div>
-
-        <div style="
-          margin-top:5px;
-          font-size:10px;
-        ">
-          اولین پیام را شما بفرستید
-        </div>
+    container.innerHTML = `
+      <div class="empty-chat">
+        <div>💌</div>
+        <p>هنوز پیامی ثبت نشده است</p>
+        <small>اولین خاطره را اینجا بنویسید</small>
       </div>
     `;
-
-    container.appendChild(empty);
 
     return;
   }
 
+  container.innerHTML =
+    currentMessages
+      .map(message => {
 
-  currentMessages.forEach(message => {
+        const mine =
+          message.senderUid ===
+          currentUser?.uid;
 
-    const mine =
-      message.senderUid === currentUser?.uid;
+        return `
+          <div class="message-row ${mine ? "mine" : "other"}">
+            <div class="message-bubble">
 
+              <div class="message-sender">
+                ${escapeHTML(message.senderName || "")}
+              </div>
 
-    const bubble =
-      document.createElement("div");
+              <div class="message-text">
+                ${escapeHTML(message.text || "")}
+              </div>
 
+              <div class="message-time">
+                ${formatDate(message.createdAt)}
+              </div>
 
-    bubble.className =
-      `message ${mine ? "mine" : "theirs"}`;
+            </div>
+          </div>
+        `;
 
+      })
+      .join("");
 
-    const senderName =
-      message.senderName ||
-      (mine ? currentName : "نفر دیگر");
-
-
-    const text =
-      escapeHTML(message.text || "")
-        .replace(/\n/g, "<br>");
-
-
-    const time =
-      formatDate(message.createdAt);
-
-
-    bubble.innerHTML = `
-      <div class="message-name">
-        ${escapeHTML(senderName)}
-      </div>
-
-      <div class="message-text">
-        ${text}
-      </div>
-
-      ${
-        time
-          ? `<div class="message-time">${time}</div>`
-          : ""
-      }
-    `;
-
-
-    container.appendChild(bubble);
-
-  });
-
-
-  requestAnimationFrame(() => {
-
-    container.scrollTop =
-      container.scrollHeight;
-
-  });
+  container.scrollTop =
+    container.scrollHeight;
 }
 
 
-/* =========================================================
-   SEND MESSAGE
-========================================================= */
-
 async function sendMessage() {
 
-  const input = getMessageInput();
+  const input =
+    getMessageInput();
 
-  if (!input || !diaryId || !currentUser) {
-    return;
-  }
-
+  if (!input || !currentUser) return;
 
   const text =
     input.value.trim();
 
-
-  if (!text) {
-    return;
-  }
-
-
-  if (text.length > 2000) {
-    showToast(
-      "پیام خیلی طولانی است",
-      "⚠️"
-    );
-
-    return;
-  }
-
-
-  const button = getSendButton();
-
-  if (button) {
-    button.disabled = true;
-  }
-
+  if (!text) return;
 
   try {
 
-    await addDoc(
+    const messagesRef =
       collection(
         db,
         "diaries",
         diaryId,
         "messages"
-      ),
+      );
+
+    await addDoc(
+      messagesRef,
       {
         senderUid: currentUser.uid,
         senderName: currentName,
         text: text,
-        favorite: false,
         createdAt: serverTimestamp()
       }
     );
-
 
     input.value = "";
 
@@ -832,44 +758,29 @@ async function sendMessage() {
     );
 
     showToast(
-      "پیام ارسال نشد",
+      firebaseErrorMessage(error),
       "❌"
     );
-
-  } finally {
-
-    if (button) {
-      button.disabled = false;
-    }
-
   }
 }
 
 
-/* =========================================================
-   CHAT
-========================================================= */
-
 function setupChat() {
 
-  const input = getMessageInput();
-  const button = getSendButton();
+  const sendButton =
+    getSendButton();
 
+  const input =
+    getMessageInput();
 
-  if (button) {
+  if (sendButton) {
 
-    button.onclick = sendMessage;
+    sendButton.onclick =
+      sendMessage;
 
   }
 
-
   if (input) {
-
-    input.addEventListener(
-      "input",
-      autoResizeTextarea
-    );
-
 
     input.addEventListener(
       "keydown",
@@ -883,35 +794,32 @@ function setupChat() {
           event.preventDefault();
 
           sendMessage();
-
         }
 
       }
     );
 
+    input.addEventListener(
+      "input",
+      autoResizeTextarea
+    );
   }
 }
 
 
-/* =========================================================
-   TEXTAREA AUTO RESIZE
-========================================================= */
-
 function autoResizeTextarea() {
 
-  const input = getMessageInput();
+  const input =
+    getMessageInput();
 
-  if (!input) {
-    return;
-  }
-
+  if (!input) return;
 
   input.style.height = "auto";
 
   input.style.height =
     Math.min(
       input.scrollHeight,
-      120
+      140
     ) + "px";
 }
 
@@ -931,59 +839,50 @@ function updateStats() {
   const daysCount =
     $("daysCount");
 
-
   if (memoryCount) {
     memoryCount.textContent =
       currentMessages.length;
   }
 
-
   if (favoriteCount) {
-
-    const favorites =
-      currentMessages.filter(
-        message =>
-          message.favorite === true
-      ).length;
-
     favoriteCount.textContent =
-      favorites;
+      currentMessages.filter(
+        message => message.favorite === true
+      ).length;
   }
-
 
   if (daysCount) {
 
-    const days = new Set();
+    const days =
+      new Set();
 
-    currentMessages.forEach(message => {
+    currentMessages.forEach(
+      message => {
 
-      if (!message.createdAt) {
-        return;
+        if (!message.createdAt) return;
+
+        let date;
+
+        try {
+
+          date =
+            message.createdAt.toDate
+              ? message.createdAt.toDate()
+              : new Date(message.createdAt);
+
+        } catch {
+          return;
+        }
+
+        if (!isNaN(date.getTime())) {
+
+          days.add(
+            date.toISOString().slice(0, 10)
+          );
+
+        }
       }
-
-      let date;
-
-      try {
-
-        date =
-          message.createdAt.toDate
-            ? message.createdAt.toDate()
-            : new Date(message.createdAt);
-
-      } catch {
-        return;
-      }
-
-      if (!isNaN(date.getTime())) {
-
-        days.add(
-          date.toISOString().slice(0, 10)
-        );
-
-      }
-
-    });
-
+    );
 
     daysCount.textContent =
       days.size;
@@ -997,31 +896,13 @@ function updateStats() {
 
 function setupPresence() {
 
-  if (!diaryId || !currentUser) {
-    return;
-  }
+  if (!currentUser || !diaryId) return;
 
-
-  const presenceRef = ref(
-    rtdb,
-    `diaries/${diaryId}/presence/${currentUser.uid}`
-  );
-
-
-  onDisconnect(presenceRef)
-    .set({
-      online: false,
-      lastSeen: rtdbServerTimestamp()
-    })
-    .catch(error => {
-
-      console.error(
-        "PRESENCE DISCONNECT:",
-        error
-      );
-
-    });
-
+  const presenceRef =
+    ref(
+      rtdb,
+      `diaries/${diaryId}/presence/${currentUser.uid}`
+    );
 
   set(
     presenceRef,
@@ -1033,91 +914,80 @@ function setupPresence() {
   ).catch(error => {
 
     console.error(
-      "PRESENCE SET:",
+      "PRESENCE SET ERROR:",
       error
     );
 
   });
 
+  onDisconnect(presenceRef)
+    .set({
+      online: false,
+      name: currentName,
+      lastSeen: rtdbServerTimestamp()
+    })
+    .catch(error => {
 
-  if (otherMember) {
-    subscribeOtherPresence();
-  }
+      console.error(
+        "ON DISCONNECT ERROR:",
+        error
+      );
 
-
-  if (unsubscribeMembers) {
-
-    // Presence دوباره در updatePartnerUI
-    // تنظیم می‌شود.
-  }
+    });
 }
 
 
-/* =========================================================
-   OTHER PRESENCE
-========================================================= */
-
 function subscribeOtherPresence() {
 
-  if (
-    !diaryId ||
-    !otherMember?.uid
-  ) {
-    return;
-  }
-
+  if (!otherMember || !diaryId) return;
 
   if (unsubscribePresence) {
     unsubscribePresence();
     unsubscribePresence = null;
   }
 
+  const presenceRef =
+    ref(
+      rtdb,
+      `diaries/${diaryId}/presence/${otherMember.uid}`
+    );
 
-  const otherPresenceRef = ref(
-    rtdb,
-    `diaries/${diaryId}/presence/${otherMember.uid}`
-  );
+  unsubscribePresence =
+    onValue(
+      presenceRef,
+      snapshot => {
 
+        const data =
+          snapshot.val();
 
-  unsubscribePresence = onValue(
-    otherPresenceRef,
-    snapshot => {
+        const online =
+          data?.online === true;
 
-      const data =
-        snapshot.val();
-
-
-      const online =
-        data?.online === true;
-
-
-      const status =
-        $("partnerStatus");
-
-
-      if (status) {
-
-        status.textContent =
+        const status =
           online
-            ? "● آنلاین"
-            : "● آفلاین";
+            ? "آنلاین"
+            : "آفلاین";
 
-        status.style.color =
-          online
-            ? "var(--success)"
-            : "var(--text-soft)";
+        if ($("partnerStatus")) {
+          $("partnerStatus").textContent =
+            status;
+        }
+
+        if ($("chatStatus")) {
+          $("chatStatus").textContent =
+            status;
+        }
+      },
+
+      error => {
+
+        console.error(
+          "PRESENCE ERROR:",
+          error
+        );
+
       }
-
-    },
-    error => {
-
-      console.error(
-        "PRESENCE READ:",
-        error
-      );
-
-    }
-  );
+    );
 }
 
 
@@ -1127,50 +997,53 @@ function subscribeOtherPresence() {
 
 async function setupBattery() {
 
-  if (!diaryId || !currentUser) {
+  if (
+    !navigator.getBattery
+  ) {
+
+    updateMyBatteryUI();
+
     return;
   }
 
-
   try {
 
-    if (
-      "getBattery" in navigator
-    ) {
+    const battery =
+      await navigator.getBattery();
 
-      const battery =
-        await navigator.getBattery();
+    myBatteryLevel =
+      battery.level;
 
+    myCharging =
+      battery.charging;
 
-      updateMyBattery(
-        battery
-      );
+    updateMyBatteryUI();
 
+    const updateBattery =
+      () => {
 
-      battery.addEventListener(
-        "levelchange",
-        () => updateMyBattery(battery)
-      );
+        myBatteryLevel =
+          battery.level;
 
+        myCharging =
+          battery.charging;
 
-      battery.addEventListener(
-        "chargingchange",
-        () => updateMyBattery(battery)
-      );
+        updateMyBatteryUI();
 
-    } else {
+        updateBatteryToFirebase();
+      };
 
-      updateBatteryText(
-        $("myBattery"),
-        "--"
-      );
+    battery.addEventListener(
+      "levelchange",
+      updateBattery
+    );
 
-      updateBatteryText(
-        $("myCharging"),
-        "اطلاعات شارژ در دسترس نیست"
-      );
+    battery.addEventListener(
+      "chargingchange",
+      updateBattery
+    );
 
-    }
+    updateBatteryToFirebase();
 
   } catch (error) {
 
@@ -1180,44 +1053,44 @@ async function setupBattery() {
     );
 
   }
-
-
-  subscribeOtherBattery();
-
 }
 
 
-/* =========================================================
-   MY BATTERY
-========================================================= */
+function updateMyBatteryUI() {
 
-async function updateMyBattery(
-  battery
-) {
-
-  if (!battery) {
+  if (
+    myBatteryLevel === null
+  ) {
     return;
   }
 
-
-  myBatteryLevel =
+  const percent =
     Math.round(
-      battery.level * 100
+      myBatteryLevel * 100
     );
 
+  if ($("myBattery")) {
+    $("myBattery").textContent =
+      percent + "%";
+  }
 
-  myCharging =
-    battery.charging === true;
+  if ($("myBatteryFill")) {
+    $("myBatteryFill").style.width =
+      percent + "%";
+  }
+
+  if ($("myCharging")) {
+    $("myCharging").textContent =
+      myCharging
+        ? "⚡ در حال شارژ"
+        : "در حال استفاده";
+  }
+}
 
 
-  updateMyBatteryUI();
+async function updateBatteryToFirebase() {
 
-
-  const batteryRef = ref(
-    rtdb,
-    `diaries/${diaryId}/presence/${currentUser.uid}/battery`
-  );
-
+  if (!currentUser || !diaryId) return;
 
   try {
 
@@ -1227,15 +1100,23 @@ async function updateMyBattery(
         `diaries/${diaryId}/presence/${currentUser.uid}`
       ),
       {
-        battery: myBatteryLevel,
-        charging: myCharging
+        battery:
+          myBatteryLevel !== null
+            ? Math.round(myBatteryLevel * 100)
+            : null,
+
+        charging:
+          myCharging,
+
+        batteryUpdatedAt:
+          rtdbServerTimestamp()
       }
     );
 
   } catch (error) {
 
     console.error(
-      "BATTERY SYNC ERROR:",
+      "BATTERY FIREBASE ERROR:",
       error
     );
 
@@ -1243,162 +1124,73 @@ async function updateMyBattery(
 }
 
 
-/* =========================================================
-   UPDATE MY BATTERY UI
-========================================================= */
-
-function updateMyBatteryUI() {
-
-  const battery =
-    $("myBattery");
-
-  const fill =
-    $("myBatteryFill");
-
-  const charging =
-    $("myCharging");
-
-
-  if (myBatteryLevel === null) {
-
-    if (battery) {
-      battery.textContent = "--";
-    }
-
-    if (charging) {
-      charging.textContent =
-        "در حال بررسی...";
-    }
-
-    return;
-  }
-
-
-  if (battery) {
-
-    battery.textContent =
-      `${myBatteryLevel}%`;
-
-  }
-
-
-  if (fill) {
-
-    fill.style.width =
-      `${myBatteryLevel}%`;
-
-  }
-
-
-  if (charging) {
-
-    charging.textContent =
-      myCharging
-        ? "⚡ در حال شارژ"
-        : "در حال استفاده";
-
-  }
-}
-
-
-/* =========================================================
-   OTHER BATTERY
-========================================================= */
-
 function subscribeOtherBattery() {
 
-  if (
-    !diaryId ||
-    !otherMember?.uid
-  ) {
-    return;
-  }
-
+  if (!otherMember || !diaryId) return;
 
   if (unsubscribeBattery) {
     unsubscribeBattery();
     unsubscribeBattery = null;
   }
 
+  const batteryRef =
+    ref(
+      rtdb,
+      `diaries/${diaryId}/presence/${otherMember.uid}`
+    );
 
-  const batteryRef = ref(
-    rtdb,
-    `diaries/${diaryId}/presence/${otherMember.uid}`
-  );
+  unsubscribeBattery =
+    onValue(
+      batteryRef,
+      snapshot => {
 
+        const data =
+          snapshot.val();
 
-  unsubscribeBattery = onValue(
-    batteryRef,
-    snapshot => {
+        const percent =
+          typeof data?.battery === "number"
+            ? data.battery
+            : null;
 
-      const data =
-        snapshot.val();
+        const charging =
+          data?.charging === true;
 
+        if (
+          percent !== null &&
+          $("otherBattery")
+        ) {
 
-      const battery =
-        $("otherBattery");
-
-      const fill =
-        $("otherBatteryFill");
-
-      const charging =
-        $("otherCharging");
-
-
-      if (
-        typeof data?.battery === "number"
-      ) {
-
-        const level =
-          Math.round(data.battery);
-
-
-        if (battery) {
-          battery.textContent =
-            `${level}%`;
+          $("otherBattery").textContent =
+            percent + "%";
         }
 
-        if (fill) {
-          fill.style.width =
-            `${level}%`;
+        if (
+          percent !== null &&
+          $("otherBatteryFill")
+        ) {
+
+          $("otherBatteryFill").style.width =
+            percent + "%";
         }
 
-      } else {
+        if ($("otherCharging")) {
 
-        if (battery) {
-          battery.textContent =
-            "--";
+          $("otherCharging").textContent =
+            charging
+              ? "⚡ در حال شارژ"
+              : "در حال استفاده";
         }
+      },
 
-        if (fill) {
-          fill.style.width =
-            "0%";
-        }
+      error => {
+
+        console.error(
+          "OTHER BATTERY ERROR:",
+          error
+        );
 
       }
-
-
-      if (charging) {
-
-        charging.textContent =
-          data?.charging === true
-            ? "⚡ در حال شارژ"
-            : data?.online === true
-              ? "در حال استفاده"
-              : "آفلاین";
-
-      }
-
-    },
-    error => {
-
-      console.error(
-        "OTHER BATTERY ERROR:",
-        error
-      );
-
-    }
-  );
+    );
 }
 
 
@@ -1413,78 +1205,86 @@ function setupTheme() {
       "diaryTheme"
     );
 
-
   if (saved === "dark") {
-    document.body.classList.add("dark");
+
+    document.body.classList.add(
+      "dark"
+    );
+
   } else {
-    document.body.classList.remove("dark");
+
+    document.body.classList.remove(
+      "dark"
+    );
   }
 
+  const themeToggle =
+    $("themeToggle");
 
-  const themeButtons = [
-    $("themeToggle"),
-    $("darkModeToggle")
-  ];
+  const darkModeToggle =
+    $("darkModeToggle");
 
+  if (themeToggle) {
 
-  themeButtons.forEach(button => {
+    themeToggle.onclick =
+      toggleTheme;
 
-    if (!button) {
-      return;
-    }
+  }
 
+  if (darkModeToggle) {
 
-    button.onclick = toggleTheme;
+    darkModeToggle.onclick =
+      toggleTheme;
 
-  });
-
+  }
 
   updateThemeButton();
 }
 
 
-/* =========================================================
-   TOGGLE THEME
-========================================================= */
-
 function toggleTheme() {
 
-  document.body.classList.toggle("dark");
-
-
   const dark =
-    document.body.classList.contains("dark");
-
+    document.body.classList.toggle(
+      "dark"
+    );
 
   localStorage.setItem(
     "diaryTheme",
     dark ? "dark" : "light"
   );
 
-
   updateThemeButton();
 }
 
 
-/* =========================================================
-   UPDATE THEME BUTTON
-========================================================= */
-
 function updateThemeButton() {
 
   const dark =
-    document.body.classList.contains("dark");
-
+    document.body.classList.contains(
+      "dark"
+    );
 
   const button =
     $("themeToggle");
-
 
   if (button) {
 
     button.textContent =
       dark ? "☀️" : "🌙";
 
+  }
+
+  const darkModeToggle =
+    $("darkModeToggle");
+
+  if (
+    darkModeToggle &&
+    darkModeToggle.type === "checkbox"
+  ) {
+
+    darkModeToggle.checked =
+      dark;
   }
 }
 
@@ -1500,14 +1300,12 @@ function setupNavigation() {
       ".nav-item[data-page]"
     );
 
-
   navItems.forEach(item => {
 
     item.onclick = () => {
 
       const pageId =
         item.dataset.page;
-
 
       document
         .querySelectorAll(".page")
@@ -1519,17 +1317,15 @@ function setupNavigation() {
 
         });
 
-
       const page =
         $(pageId);
 
-
       if (page) {
+
         page.classList.add(
           "active-page"
         );
       }
-
 
       navItems.forEach(nav => {
 
@@ -1539,34 +1335,16 @@ function setupNavigation() {
 
       });
 
-
       item.classList.add(
         "active"
       );
-
     };
-
   });
 }
 
 
 /* =========================================================
-   FIND OTHER MEMBER
-========================================================= */
-
-function getOtherMember() {
-
-  return (
-    members.find(
-      member =>
-        member.uid !== currentUser?.uid
-    ) || null
-  );
-}
-
-
-/* =========================================================
-   CALL BUTTON EVENTS
+   WEBRTC BUTTONS
 ========================================================= */
 
 function setupCallButtons() {
@@ -1603,14 +1381,12 @@ function setupCallButtons() {
 
   }
 
-
   if (videoCallBtn) {
 
     videoCallBtn.onclick =
       () => startOutgoingCall("video");
 
   }
-
 
   if (acceptCallBtn) {
 
@@ -1619,21 +1395,25 @@ function setupCallButtons() {
 
   }
 
+  /*
+    FIX:
+    قبلاً اینجا تابع بلافاصله اجرا می‌شد.
+    الان فقط هنگام کلیک اجرا می‌شود.
+  */
 
   if (rejectCallBtn) {
 
-    rejectIncomingCall();
+    rejectCallBtn.onclick =
+      rejectIncomingCall;
 
   }
-
 
   if (endCallBtn) {
 
     endCallBtn.onclick =
-      endCurrentCall;
+      () => endCurrentCall(false);
 
   }
-
 
   if (micBtn) {
 
@@ -1642,14 +1422,12 @@ function setupCallButtons() {
 
   }
 
-
   if (cameraBtn) {
 
     cameraBtn.onclick =
       toggleCamera;
 
   }
-
 
   if (speakerBtn) {
 
@@ -1658,14 +1436,9 @@ function setupCallButtons() {
 
   }
 
-
   updateCallButtonsUI();
 }
 
-
-/* =========================================================
-   CALL BUTTON UI
-========================================================= */
 
 function updateCallButtonsUI() {
 
@@ -1678,7 +1451,6 @@ function updateCallButtonsUI() {
   const speakerBtn =
     $("speakerBtn");
 
-
   if (micBtn) {
 
     micBtn.textContent =
@@ -1688,9 +1460,7 @@ function updateCallButtonsUI() {
 
     micBtn.style.opacity =
       micEnabled ? "1" : "0.55";
-
   }
-
 
   if (cameraBtn) {
 
@@ -1701,9 +1471,7 @@ function updateCallButtonsUI() {
 
     cameraBtn.style.opacity =
       cameraEnabled ? "1" : "0.55";
-
   }
-
 
   if (speakerBtn) {
 
@@ -1714,20 +1482,18 @@ function updateCallButtonsUI() {
 
     speakerBtn.style.opacity =
       speakerEnabled ? "1" : "0.55";
-
   }
 }
 
 
 /* =========================================================
-   START OUTGOING CALL
+   OUTGOING CALL
 ========================================================= */
 
-async function startOutgoingCall(
-  type
-) {
+async function startOutgoingCall(type) {
 
   if (!currentUser) {
+
     showToast(
       "ابتدا وارد دفترچه شوید",
       "⚠️"
@@ -1736,10 +1502,8 @@ async function startOutgoingCall(
     return;
   }
 
-
   const partner =
     getOtherMember();
-
 
   if (!partner) {
 
@@ -1751,7 +1515,6 @@ async function startOutgoingCall(
     return;
   }
 
-
   if (currentCallId) {
 
     showToast(
@@ -1762,7 +1525,6 @@ async function startOutgoingCall(
     return;
   }
 
-
   try {
 
     currentCallType =
@@ -1771,31 +1533,17 @@ async function startOutgoingCall(
     currentCallRole =
       "caller";
 
-
-    /*
-      مهم:
-
-      در شروع هر تماس:
-      میکروفون خاموش است.
-
-      در تماس تصویری:
-      دوربین هم خاموش است.
-    */
-
     micEnabled = false;
     cameraEnabled = false;
     speakerEnabled = true;
 
-
     localStream =
       await getLocalMedia(type);
-
 
     peerConnection =
       createPeerConnection(
         "caller"
       );
-
 
     localStream
       .getTracks()
@@ -1808,15 +1556,12 @@ async function startOutgoingCall(
 
       });
 
-
     const offer =
       await peerConnection.createOffer();
-
 
     await peerConnection.setLocalDescription(
       offer
     );
-
 
     const callRef =
       await addDoc(
@@ -1827,29 +1572,39 @@ async function startOutgoingCall(
           "calls"
         ),
         {
-          callerUid: currentUser.uid,
-          callerName: currentName,
+          callerUid:
+            currentUser.uid,
 
-          calleeUid: partner.uid,
-          calleeName: partner.name,
+          callerName:
+            currentName,
 
-          type: type,
+          calleeUid:
+            partner.uid,
 
-          status: "ringing",
+          calleeName:
+            partner.name,
+
+          type:
+            type,
+
+          status:
+            "ringing",
 
           offer: {
-            type: offer.type,
-            sdp: offer.sdp
+            type:
+              offer.type,
+
+            sdp:
+              offer.sdp
           },
 
-          createdAt: serverTimestamp()
+          createdAt:
+            serverTimestamp()
         }
       );
 
-
     currentCallId =
       callRef.id;
-
 
     setupCurrentCallListener();
 
@@ -1857,20 +1612,16 @@ async function startOutgoingCall(
       "calleeCandidates"
     );
 
-
     showCallScreen(
       partner.name,
       type
     );
 
-
     setCallStatus(
       "در حال برقراری تماس..."
     );
 
-
     updateCallButtonsUI();
-
 
   } catch (error) {
 
@@ -1879,37 +1630,31 @@ async function startOutgoingCall(
       error
     );
 
-
     cleanupCall();
-
 
     showToast(
       getMediaErrorMessage(error),
       "❌"
     );
-
   }
 }
 
 
 /* =========================================================
-   GET LOCAL MEDIA
+   MEDIA
 ========================================================= */
 
-async function getLocalMedia(
-  type
-) {
+async function getLocalMedia(type) {
 
-  /*
-    AUDIO CALL:
-    فقط میکروفون گرفته می‌شود.
-    اما disabled = false می‌کنیم
-    تا در شروع تماس میکروفون خاموش باشد.
+  if (
+    !navigator.mediaDevices ||
+    !navigator.mediaDevices.getUserMedia
+  ) {
 
-    VIDEO CALL:
-    دوربین + میکروفون گرفته می‌شود.
-    هر دو در ابتدا خاموش هستند.
-  */
+    throw new Error(
+      "MEDIA_NOT_SUPPORTED"
+    );
+  }
 
   const constraints =
     type === "video"
@@ -1924,12 +1669,10 @@ async function getLocalMedia(
           video: false
         };
 
-
   const stream =
     await navigator.mediaDevices.getUserMedia(
       constraints
     );
-
 
   stream
     .getAudioTracks()
@@ -1939,7 +1682,6 @@ async function getLocalMedia(
 
     });
 
-
   stream
     .getVideoTracks()
     .forEach(track => {
@@ -1948,111 +1690,109 @@ async function getLocalMedia(
 
     });
 
-
-  /*
-    وضعیت اولیه دقیقاً خاموش
-  */
-
   micEnabled = false;
   cameraEnabled = false;
 
-
   const localVideo =
     $("localVideo");
-
 
   if (localVideo) {
 
     localVideo.srcObject =
       stream;
 
+    localVideo.muted = true;
+
+    localVideo.play()
+      .catch(() => {});
   }
 
-
   updateCallButtonsUI();
-
 
   return stream;
 }
 
 
 /* =========================================================
-   CREATE PEER CONNECTION
+   PEER CONNECTION
 ========================================================= */
 
-function createPeerConnection(
-  role
-) {
+function createPeerConnection(role) {
 
   const pc =
     new RTCPeerConnection(
       rtcConfig
     );
 
+  pc.ontrack =
+    event => {
 
-  pc.ontrack = event => {
+      if (!remoteStream) {
 
-    if (!remoteStream) {
+        remoteStream =
+          new MediaStream();
 
-      remoteStream =
-        new MediaStream();
+      }
 
-    }
+      const incomingStream =
+        event.streams?.[0];
 
+      if (incomingStream) {
 
-    event.streams[0]
-      .getTracks()
-      .forEach(track => {
+        incomingStream
+          .getTracks()
+          .forEach(track => {
 
-        const alreadyExists =
-          remoteStream
-            .getTracks()
-            .some(
-              existing =>
-                existing.id === track.id
-            );
+            if (
+              !remoteStream
+                .getTracks()
+                .some(
+                  existing =>
+                    existing.id ===
+                    track.id
+                )
+            ) {
 
+              remoteStream.addTrack(
+                track
+              );
+            }
+          });
 
-        if (!alreadyExists) {
+      } else {
 
-          remoteStream.addTrack(
-            track
-          );
+        remoteStream.addTrack(
+          event.track
+        );
+      }
 
-        }
+      const remoteVideo =
+        $("remoteVideo");
 
-      });
+      const remoteAudio =
+        $("remoteAudio");
 
+      if (remoteVideo) {
 
-    const remoteVideo =
-      $("remoteVideo");
+        remoteVideo.srcObject =
+          remoteStream;
 
-    const remoteAudio =
-      $("remoteAudio");
+        remoteVideo.play()
+          .catch(() => {});
+      }
 
+      if (remoteAudio) {
 
-    if (remoteVideo) {
+        remoteAudio.srcObject =
+          remoteStream;
 
-      remoteVideo.srcObject =
-        remoteStream;
+        remoteAudio.muted =
+          !speakerEnabled;
 
-    }
-
-
-    if (remoteAudio) {
-
-      remoteAudio.srcObject =
-        remoteStream;
-
-      remoteAudio.muted =
-        !speakerEnabled;
-
-      remoteAudio.play()
-        .catch(() => {});
-
-    }
-
-  };
+        remoteAudio.play()
+          .catch(() => {});
+      }
+    };
 
 
   pc.onicecandidate =
@@ -2065,12 +1805,10 @@ function createPeerConnection(
         return;
       }
 
-
       const collectionName =
         role === "caller"
           ? "callerCandidates"
           : "calleeCandidates";
-
 
       try {
 
@@ -2089,12 +1827,10 @@ function createPeerConnection(
       } catch (error) {
 
         console.error(
-          "ICE CANDIDATE ERROR:",
+          "ICE ERROR:",
           error
         );
-
       }
-
     };
 
 
@@ -2102,10 +1838,9 @@ function createPeerConnection(
     () => {
 
       console.log(
-        "WebRTC connection:",
+        "WebRTC:",
         pc.connectionState
       );
-
 
       if (
         pc.connectionState ===
@@ -2117,9 +1852,7 @@ function createPeerConnection(
         );
 
         startCallTimer();
-
       }
-
 
       if (
         pc.connectionState ===
@@ -2129,9 +1862,7 @@ function createPeerConnection(
         setCallStatus(
           "در حال اتصال..."
         );
-
       }
-
 
       if (
         pc.connectionState ===
@@ -2141,9 +1872,7 @@ function createPeerConnection(
         setCallStatus(
           "اتصال قطع شد..."
         );
-
       }
-
 
       if (
         pc.connectionState ===
@@ -2155,12 +1884,8 @@ function createPeerConnection(
           "❌"
         );
 
-        endCurrentCall(
-          true
-        );
-
+        endCurrentCall(true);
       }
-
 
       if (
         pc.connectionState ===
@@ -2168,22 +1893,8 @@ function createPeerConnection(
       ) {
 
         stopCallTimer();
-
       }
-
     };
-
-
-  pc.oniceconnectionstatechange =
-    () => {
-
-      console.log(
-        "ICE:",
-        pc.iceConnectionState
-      );
-
-    };
-
 
   return pc;
 }
@@ -2202,16 +1913,12 @@ function setupCurrentCallListener() {
     return;
   }
 
-
   if (unsubscribeCurrentCall) {
 
     unsubscribeCurrentCall();
 
-    unsubscribeCurrentCall =
-      null;
-
+    unsubscribeCurrentCall = null;
   }
-
 
   const callRef =
     doc(
@@ -2222,95 +1929,113 @@ function setupCurrentCallListener() {
       currentCallId
     );
 
-
   unsubscribeCurrentCall =
     onSnapshot(
       callRef,
       async snapshot => {
 
         if (!snapshot.exists()) {
+
+          cleanupCall();
+
           return;
         }
 
-
-        const call =
+        const data =
           snapshot.data();
 
-
         if (
-          currentCallRole === "caller" &&
-          call.answer &&
-          peerConnection
+          currentCallRole ===
+          "caller"
         ) {
 
-          try {
+          if (
+            data.status ===
+            "accepted"
+          ) {
 
-            const remoteDescription =
+            if (
+              data.answer &&
               peerConnection
-                .remoteDescription;
+            ) {
 
+              const currentDescription =
+                peerConnection
+                  .currentRemoteDescription;
 
-            if (!remoteDescription) {
+              if (!currentDescription) {
 
-              await peerConnection
-                .setRemoteDescription(
-                  new RTCSessionDescription(
-                    call.answer
-                  )
-                );
+                try {
 
+                  await peerConnection
+                    .setRemoteDescription(
+                      new RTCSessionDescription(
+                        data.answer
+                      )
+                    );
 
-              setCallStatus(
-                "در حال اتصال..."
-              );
+                  setCallStatus(
+                    "در حال اتصال..."
+                  );
 
+                } catch (error) {
+
+                  console.error(
+                    "REMOTE ANSWER ERROR:",
+                    error
+                  );
+                }
+              }
             }
-
-          } catch (error) {
-
-            console.error(
-              "SET ANSWER ERROR:",
-              error
-            );
-
           }
 
-        }
+          if (
+            data.status ===
+            "rejected"
+          ) {
 
+            showToast(
+              "تماس رد شد",
+              "❌"
+            );
+
+            await endCurrentCall(
+              true
+            );
+          }
+
+          if (
+            data.status ===
+            "ended"
+          ) {
+
+            await endCurrentCall(
+              true
+            );
+          }
+        }
 
         if (
-          call.status ===
-          "rejected"
+          currentCallRole ===
+          "callee"
         ) {
 
-          showToast(
-            "تماس رد شد",
-            "📞"
-          );
+          if (
+            data.status ===
+            "ended"
+          ) {
 
-          endCurrentCall(
-            true
-          );
-
+            await endCurrentCall(
+              true
+            );
+          }
         }
-
-
-        if (
-          call.status ===
-          "ended"
-        ) {
-
-          endCurrentCall(
-            true
-          );
-
-        }
-
       },
+
       error => {
 
         console.error(
-          "CURRENT CALL ERROR:",
+          "CALL LISTENER ERROR:",
           error
         );
 
@@ -2320,7 +2045,7 @@ function setupCurrentCallListener() {
 
 
 /* =========================================================
-   CANDIDATE LISTENER
+   CANDIDATES
 ========================================================= */
 
 function setupCandidateListener(
@@ -2328,22 +2053,19 @@ function setupCandidateListener(
 ) {
 
   if (
+    !currentCallId ||
     !diaryId ||
-    !currentCallId
+    !peerConnection
   ) {
     return;
   }
-
 
   if (unsubscribeCandidates) {
 
     unsubscribeCandidates();
 
-    unsubscribeCandidates =
-      null;
-
+    unsubscribeCandidates = null;
   }
-
 
   const candidatesRef =
     collection(
@@ -2355,57 +2077,47 @@ function setupCandidateListener(
       collectionName
     );
 
-
   unsubscribeCandidates =
     onSnapshot(
       candidatesRef,
       snapshot => {
 
         snapshot.docChanges()
-          .forEach(
-            async change => {
+          .forEach(async change => {
 
-              if (
-                change.type !==
-                "added"
-              ) {
-                return;
-              }
+            if (
+              change.type !==
+              "added"
+            ) {
+              return;
+            }
 
+            try {
 
-              if (
-                !peerConnection
-              ) {
-                return;
-              }
+              const data =
+                change.doc.data();
 
-
-              try {
-
-                await peerConnection
-                  .addIceCandidate(
-                    new RTCIceCandidate(
-                      change.doc.data()
-                    )
-                  );
-
-              } catch (error) {
-
-                console.error(
-                  "ADD ICE ERROR:",
-                  error
+              await peerConnection
+                .addIceCandidate(
+                  new RTCIceCandidate(
+                    data
+                  )
                 );
 
-              }
+            } catch (error) {
 
+              console.error(
+                "ADD ICE ERROR:",
+                error
+              );
             }
-          );
-
+          });
       },
+
       error => {
 
         console.error(
-          "CANDIDATES ERROR:",
+          "CANDIDATE LISTENER ERROR:",
           error
         );
 
@@ -2421,28 +2133,22 @@ function setupCandidateListener(
 function setupIncomingCalls() {
 
   if (
-    !diaryId ||
-    !currentUser
+    !currentUser ||
+    !diaryId
   ) {
     return;
   }
-
 
   if (unsubscribeIncomingCalls) {
 
     unsubscribeIncomingCalls();
 
-    unsubscribeIncomingCalls =
-      null;
-
+    unsubscribeIncomingCalls = null;
   }
 
-
   /*
-    فقط calleeUid را query می‌کنیم
-    تا نیاز به Composite Index نباشد.
-
-    status را داخل کد بررسی می‌کنیم.
+    فقط تماس‌هایی که callee آن خودمان هستیم.
+    نیازی به Composite Index نداریم.
   */
 
   const callsRef =
@@ -2452,7 +2158,6 @@ function setupIncomingCalls() {
       diaryId,
       "calls"
     );
-
 
   const incomingQuery =
     query(
@@ -2464,55 +2169,45 @@ function setupIncomingCalls() {
       )
     );
 
-
   unsubscribeIncomingCalls =
     onSnapshot(
       incomingQuery,
       snapshot => {
 
-        let ringingCall =
-          null;
-
-
-        snapshot.forEach(
-          item => {
-
-            const data =
-              item.data();
-
+        snapshot.docChanges()
+          .forEach(change => {
 
             if (
-              data.status ===
-              "ringing"
+              change.type !==
+              "added"
             ) {
-
-              ringingCall = {
-                id: item.id,
-                ...data
-              };
-
+              return;
             }
 
-          }
-        );
+            const data =
+              change.doc.data();
 
+            if (
+              data.status !==
+              "ringing"
+            ) {
+              return;
+            }
 
-        if (
-          ringingCall &&
-          !currentCallId
-        ) {
+            if (
+              data.callerUid ===
+              currentUser.uid
+            ) {
+              return;
+            }
 
-          pendingIncomingCall =
-            ringingCall;
-
-
-          showIncomingCall(
-            ringingCall
-          );
-
-        }
-
+            showIncomingCall(
+              change.doc.id,
+              data
+            );
+          });
       },
+
       error => {
 
         console.error(
@@ -2530,125 +2225,111 @@ function setupIncomingCalls() {
 ========================================================= */
 
 function showIncomingCall(
-  call
+  callId,
+  data
 ) {
+
+  if (
+    currentCallId &&
+    currentCallId !== callId
+  ) {
+    return;
+  }
+
+  pendingIncomingCall = {
+    id: callId,
+    ...data
+  };
 
   const modal =
     $("incomingCallModal");
 
+  if (!modal) return;
 
-  if (!modal) {
-    return;
-  }
+  if ($("incomingCallerName")) {
 
-
-  const callerName =
-    $("incomingCallerName");
-
-
-  const callType =
-    $("incomingCallType");
-
-
-  if (callerName) {
-
-    callerName.textContent =
-      call.callerName ||
+    $("incomingCallerName")
+      .textContent =
+      data.callerName ||
       "نفر دیگر";
-
   }
 
+  if ($("incomingCallType")) {
 
-  if (callType) {
-
-    callType.textContent =
-      call.type === "video"
+    $("incomingCallType")
+      .textContent =
+      data.type === "video"
         ? "تماس تصویری"
         : "تماس صوتی";
-
   }
 
-
-  modal.classList.remove(
-    "hidden"
+  modal.classList.add(
+    "show"
   );
 }
 
-
-/* =========================================================
-   HIDE INCOMING CALL
-========================================================= */
 
 function hideIncomingCall() {
 
   const modal =
     $("incomingCallModal");
 
-
   if (modal) {
 
-    modal.classList.add(
-      "hidden"
+    modal.classList.remove(
+      "show"
     );
-
   }
 }
 
 
 /* =========================================================
-   ACCEPT INCOMING CALL
+   ACCEPT CALL
 ========================================================= */
 
 async function acceptIncomingCall() {
 
-  const call =
+  const incoming =
     pendingIncomingCall;
 
+  if (!incoming) return;
 
-  if (!call) {
+  if (currentCallId) {
+
+    showToast(
+      "در حال حاضر یک تماس فعال است",
+      "⚠️"
+    );
+
     return;
   }
 
-
-  hideIncomingCall();
-
-
   try {
 
+    hideIncomingCall();
+
     currentCallId =
-      call.id;
+      incoming.id;
 
     currentCallType =
-      call.type;
+      incoming.type;
 
     currentCallRole =
       "callee";
-
-
-    /*
-      تماس صوتی:
-      میکروفون خاموش
-
-      تماس تصویری:
-      میکروفون + دوربین خاموش
-    */
 
     micEnabled = false;
     cameraEnabled = false;
     speakerEnabled = true;
 
-
     localStream =
       await getLocalMedia(
-        call.type
+        currentCallType
       );
-
 
     peerConnection =
       createPeerConnection(
         "callee"
       );
-
 
     localStream
       .getTracks()
@@ -2661,25 +2342,21 @@ async function acceptIncomingCall() {
 
       });
 
-
     await peerConnection
       .setRemoteDescription(
         new RTCSessionDescription(
-          call.offer
+          incoming.offer
         )
       );
-
 
     const answer =
       await peerConnection
         .createAnswer();
 
-
     await peerConnection
       .setLocalDescription(
         answer
       );
-
 
     await updateDoc(
       doc(
@@ -2691,13 +2368,17 @@ async function acceptIncomingCall() {
       ),
       {
         answer: {
-          type: answer.type,
-          sdp: answer.sdp
+          type:
+            answer.type,
+
+          sdp:
+            answer.sdp
         },
-        status: "accepted"
+
+        status:
+          "accepted"
       }
     );
-
 
     setupCurrentCallListener();
 
@@ -2705,25 +2386,20 @@ async function acceptIncomingCall() {
       "callerCandidates"
     );
 
-
     showCallScreen(
-      call.callerName ||
+      incoming.callerName ||
       "نفر دیگر",
-      call.type
+      incoming.type
     );
-
 
     setCallStatus(
       "در حال اتصال..."
     );
 
-
     updateCallButtonsUI();
-
 
     pendingIncomingCall =
       null;
-
 
   } catch (error) {
 
@@ -2732,76 +2408,47 @@ async function acceptIncomingCall() {
       error
     );
 
+    await rejectCallById(
+      incoming.id
+    );
+
+    cleanupCall();
 
     showToast(
       getMediaErrorMessage(error),
       "❌"
     );
-
-
-    await rejectCallById(
-      call.id
-    );
-
-
-    cleanupCall();
-
   }
 }
 
 
 /* =========================================================
-   REJECT INCOMING CALL
+   REJECT CALL
 ========================================================= */
 
 async function rejectIncomingCall() {
 
-  const call =
+  const incoming =
     pendingIncomingCall;
-
 
   hideIncomingCall();
 
-
-  if (!call) {
-    return;
-  }
-
-
-  try {
-
-    await rejectCallById(
-      call.id
-    );
-
-
-  } catch (error) {
-
-    console.error(
-      "REJECT CALL ERROR:",
-      error
-    );
-
-  }
-
-
   pendingIncomingCall =
     null;
+
+  if (!incoming) return;
+
+  await rejectCallById(
+    incoming.id
+  );
 }
 
-
-/* =========================================================
-   REJECT CALL BY ID
-========================================================= */
 
 async function rejectCallById(
   callId
 ) {
 
-  if (!callId || !diaryId) {
-    return;
-  }
-
+  if (!callId || !diaryId) return;
 
   try {
 
@@ -2814,23 +2461,23 @@ async function rejectCallById(
         callId
       ),
       {
-        status: "rejected"
+        status:
+          "rejected"
       }
     );
 
   } catch (error) {
 
     console.error(
-      "REJECT UPDATE ERROR:",
+      "REJECT CALL ERROR:",
       error
     );
-
   }
 }
 
 
 /* =========================================================
-   SHOW CALL SCREEN
+   CALL SCREEN
 ========================================================= */
 
 function showCallScreen(
@@ -2841,110 +2488,102 @@ function showCallScreen(
   const screen =
     $("callScreen");
 
+  if (!screen) return;
 
-  if (!screen) {
-    return;
-  }
-
-
-  screen.classList.remove(
-    "hidden"
+  screen.classList.add(
+    "show"
   );
-
 
   if ($("callTitle")) {
 
     $("callTitle").textContent =
       name ||
       "نفر دیگر";
-
   }
-
 
   setCallStatus(
     "در حال برقراری تماس..."
   );
 
-
   if ($("callTimer")) {
 
     $("callTimer").textContent =
       "00:00";
-
   }
 
+  const remoteVideo =
+    $("remoteVideo");
 
-  const label =
-    document.querySelector(
-      ".call-type-label"
-    );
+  const localVideo =
+    $("localVideo");
 
+  if (type === "video") {
 
-  if (label) {
+    if (remoteVideo) {
 
-    label.textContent =
-      type === "video"
-        ? "تماس تصویری"
-        : "تماس صوتی";
+      remoteVideo.style.display =
+        "block";
+    }
 
+    if (localVideo) {
+
+      localVideo.style.display =
+        "block";
+    }
+
+  } else {
+
+    if (remoteVideo) {
+
+      remoteVideo.style.display =
+        "none";
+    }
+
+    if (localVideo) {
+
+      localVideo.style.display =
+        "none";
+    }
   }
-
-
-  const cameraBtn =
-    $("cameraBtn");
-
-
-  /*
-    در تماس صوتی اصلاً دوربین نداریم.
-  */
-
-  if (cameraBtn) {
-
-    cameraBtn.style.display =
-      type === "video"
-        ? "flex"
-        : "none";
-
-  }
-
-
-  updateCallButtonsUI();
 }
 
 
-/* =========================================================
-   CALL STATUS
-========================================================= */
+function hideCallScreen() {
+
+  const screen =
+    $("callScreen");
+
+  if (screen) {
+
+    screen.classList.remove(
+      "show"
+    );
+  }
+}
+
 
 function setCallStatus(
   text
 ) {
 
-  const status =
-    $("callStatus");
+  if ($("callStatus")) {
 
-
-  if (status) {
-    status.textContent =
+    $("callStatus").textContent =
       text;
   }
 }
 
 
 /* =========================================================
-   MICROPHONE
+   CALL CONTROLS
 ========================================================= */
 
 function toggleMicrophone() {
 
-  if (!localStream) {
-    return;
-  }
-
+  if (!localStream) return;
 
   const tracks =
     localStream.getAudioTracks();
-
 
   if (!tracks.length) {
 
@@ -2956,134 +2595,66 @@ function toggleMicrophone() {
     return;
   }
 
-
   micEnabled =
     !micEnabled;
 
-
   tracks.forEach(
     track => {
-
       track.enabled =
         micEnabled;
-
     }
   );
 
-
   updateCallButtonsUI();
-
-
-  showToast(
-    micEnabled
-      ? "میکروفون روشن شد 🎙️"
-      : "میکروفون خاموش شد 🔇",
-    micEnabled
-      ? "🎙️"
-      : "🔇"
-  );
 }
 
 
-/* =========================================================
-   CAMERA
-========================================================= */
-
 function toggleCamera() {
 
-  if (!localStream) {
-    return;
-  }
-
+  if (!localStream) return;
 
   const tracks =
     localStream.getVideoTracks();
 
-
   if (!tracks.length) {
 
     showToast(
-      "دوربین در این تماس فعال نیست",
+      "دوربین در این تماس وجود ندارد",
       "⚠️"
     );
 
     return;
   }
 
-
   cameraEnabled =
     !cameraEnabled;
 
-
   tracks.forEach(
     track => {
-
       track.enabled =
         cameraEnabled;
-
     }
   );
 
-
   updateCallButtonsUI();
-
-
-  showToast(
-    cameraEnabled
-      ? "دوربین روشن شد 📷"
-      : "دوربین خاموش شد 🚫",
-    cameraEnabled
-      ? "📷"
-      : "🚫"
-  );
 }
 
-
-/* =========================================================
-   SPEAKER
-========================================================= */
 
 function toggleSpeaker() {
 
   speakerEnabled =
     !speakerEnabled;
 
-
   const remoteAudio =
     $("remoteAudio");
-
-
-  const remoteVideo =
-    $("remoteVideo");
-
 
   if (remoteAudio) {
 
     remoteAudio.muted =
       !speakerEnabled;
-
   }
-
-
-  if (remoteVideo) {
-
-    remoteVideo.muted =
-      !speakerEnabled;
-
-  }
-
 
   updateCallButtonsUI();
-
-
-  showToast(
-    speakerEnabled
-      ? "صدای خروجی روشن شد 🔊"
-      : "صدای خروجی خاموش شد 🔇",
-    speakerEnabled
-      ? "🔊"
-      : "🔇"
-  );
 }
 
 
@@ -3097,10 +2668,8 @@ function startCallTimer() {
     return;
   }
 
-
   callStartedAt =
     Date.now();
-
 
   callTimerInterval =
     setInterval(
@@ -3108,57 +2677,40 @@ function startCallTimer() {
       1000
     );
 
-
   updateCallTimer();
 }
 
 
-/* =========================================================
-   UPDATE CALL TIMER
-========================================================= */
-
 function updateCallTimer() {
 
-  if (!callStartedAt) {
-    return;
-  }
-
+  if (!callStartedAt) return;
 
   const elapsed =
     Math.floor(
-      (Date.now() - callStartedAt) /
+      (Date.now() -
+        callStartedAt) /
       1000
     );
 
-
   const minutes =
-    Math.floor(elapsed / 60)
-      .toString()
-      .padStart(2, "0");
-
+    String(
+      Math.floor(
+        elapsed / 60
+      )
+    ).padStart(2, "0");
 
   const seconds =
-    (elapsed % 60)
-      .toString()
-      .padStart(2, "0");
+    String(
+      elapsed % 60
+    ).padStart(2, "0");
 
+  if ($("callTimer")) {
 
-  const timer =
-    $("callTimer");
-
-
-  if (timer) {
-
-    timer.textContent =
+    $("callTimer").textContent =
       `${minutes}:${seconds}`;
-
   }
 }
 
-
-/* =========================================================
-   STOP CALL TIMER
-========================================================= */
 
 function stopCallTimer() {
 
@@ -3170,29 +2722,15 @@ function stopCallTimer() {
 
     callTimerInterval =
       null;
-
   }
-
 
   callStartedAt =
     null;
-
-
-  const timer =
-    $("callTimer");
-
-
-  if (timer) {
-
-    timer.textContent =
-      "00:00";
-
-  }
 }
 
 
 /* =========================================================
-   END CURRENT CALL
+   END CALL
 ========================================================= */
 
 async function endCurrentCall(
@@ -3202,10 +2740,10 @@ async function endCurrentCall(
   const callId =
     currentCallId;
 
-
   if (
     callId &&
-    diaryId
+    diaryId &&
+    !silent
   ) {
 
     try {
@@ -3219,7 +2757,8 @@ async function endCurrentCall(
           callId
         ),
         {
-          status: "ended"
+          status:
+            "ended"
         }
       );
 
@@ -3229,34 +2768,16 @@ async function endCurrentCall(
         "END CALL FIRESTORE ERROR:",
         error
       );
-
     }
-
   }
-
 
   cleanupCall();
-
-
-  if (!silent) {
-
-    showToast(
-      "تماس پایان یافت",
-      "📞"
-    );
-
-  }
 }
 
-
-/* =========================================================
-   CLEANUP CALL
-========================================================= */
 
 function cleanupCall() {
 
   stopCallTimer();
-
 
   if (unsubscribeCurrentCall) {
 
@@ -3264,9 +2785,7 @@ function cleanupCall() {
 
     unsubscribeCurrentCall =
       null;
-
   }
-
 
   if (unsubscribeCandidates) {
 
@@ -3274,9 +2793,7 @@ function cleanupCall() {
 
     unsubscribeCandidates =
       null;
-
   }
-
 
   if (peerConnection) {
 
@@ -3288,16 +2805,13 @@ function cleanupCall() {
       null;
   }
 
-
   if (localStream) {
 
     localStream
       .getTracks()
       .forEach(
         track => {
-
           track.stop();
-
         }
       );
 
@@ -3305,23 +2819,19 @@ function cleanupCall() {
       null;
   }
 
-
   if (remoteStream) {
 
     remoteStream
       .getTracks()
       .forEach(
         track => {
-
           track.stop();
-
         }
       );
 
     remoteStream =
       null;
   }
-
 
   const localVideo =
     $("localVideo");
@@ -3332,30 +2842,20 @@ function cleanupCall() {
   const remoteAudio =
     $("remoteAudio");
 
-
   if (localVideo) {
-
     localVideo.srcObject =
       null;
-
   }
-
 
   if (remoteVideo) {
-
     remoteVideo.srcObject =
       null;
-
   }
-
 
   if (remoteAudio) {
-
     remoteAudio.srcObject =
       null;
-
   }
-
 
   currentCallId =
     null;
@@ -3366,180 +2866,78 @@ function cleanupCall() {
   currentCallRole =
     null;
 
-
   pendingIncomingCall =
     null;
 
+  micEnabled =
+    false;
 
-  /*
-    هر تماس جدید دوباره از حالت خاموش شروع می‌شود.
-  */
+  cameraEnabled =
+    false;
 
-  micEnabled = false;
-  cameraEnabled = false;
-  speakerEnabled = true;
+  speakerEnabled =
+    true;
 
+  hideIncomingCall();
 
-  const screen =
-    $("callScreen");
-
-
-  if (screen) {
-
-    screen.classList.add(
-      "hidden"
-    );
-
-  }
-
-
-  const cameraBtn =
-    $("cameraBtn");
-
-
-  if (cameraBtn) {
-
-    cameraBtn.style.display =
-      "flex";
-
-  }
-
+  hideCallScreen();
 
   updateCallButtonsUI();
 }
 
 
 /* =========================================================
-   MEDIA ERROR MESSAGE
+   MEDIA ERROR
 ========================================================= */
 
 function getMediaErrorMessage(
   error
 ) {
 
-  if (!error) {
-    return "دسترسی به میکروفون یا دوربین ممکن نشد";
-  }
-
+  const name =
+    error?.name || "";
 
   if (
-    error.name ===
+    name ===
     "NotAllowedError"
   ) {
 
-    return "اجازه میکروفون یا دوربین داده نشده است";
-
+    return "اجازه دوربین یا میکروفون داده نشده است";
   }
 
-
   if (
-    error.name ===
+    name ===
     "NotFoundError"
   ) {
 
-    return "میکروفون یا دوربین پیدا نشد";
-
+    return "دوربین یا میکروفون پیدا نشد";
   }
 
-
   if (
-    error.name ===
+    name ===
     "NotReadableError"
   ) {
 
-    return "میکروفون یا دوربین توسط برنامه دیگری استفاده می‌شود";
-
+    return "دوربین یا میکروفون توسط برنامه دیگری استفاده می‌شود";
   }
-
 
   if (
-    error.name ===
-    "SecurityError"
+    name ===
+    "NotSupportedError"
   ) {
 
-    return "سایت باید با HTTPS باز شود";
-
+    return "مرورگر از تماس پشتیبانی نمی‌کند";
   }
 
+  if (
+    error?.message ===
+    "MEDIA_NOT_SUPPORTED"
+  ) {
 
-  return "دسترسی به میکروفون یا دوربین ممکن نشد";
-}
-
-
-/* =========================================================
-   CLEANUP SUBSCRIPTIONS
-========================================================= */
-
-function cleanupSubscriptions() {
-
-  if (unsubscribeMembers) {
-
-    unsubscribeMembers();
-
-    unsubscribeMembers =
-      null;
-
+    return "مرورگر از دوربین و میکروفون پشتیبانی نمی‌کند";
   }
 
-
-  if (unsubscribeMessages) {
-
-    unsubscribeMessages();
-
-    unsubscribeMessages =
-      null;
-
-  }
-
-
-  if (unsubscribePresence) {
-
-    unsubscribePresence();
-
-    unsubscribePresence =
-      null;
-
-  }
-
-
-  if (unsubscribeBattery) {
-
-    unsubscribeBattery();
-
-    unsubscribeBattery =
-      null;
-
-  }
-
-
-  if (unsubscribeIncomingCalls) {
-
-    unsubscribeIncomingCalls();
-
-    unsubscribeIncomingCalls =
-      null;
-
-  }
-
-
-  if (unsubscribeCurrentCall) {
-
-    unsubscribeCurrentCall();
-
-    unsubscribeCurrentCall =
-      null;
-
-  }
-
-
-  if (unsubscribeCandidates) {
-
-    unsubscribeCandidates();
-
-    unsubscribeCandidates =
-      null;
-
-  }
+  return "برقراری تماس امکان‌پذیر نیست";
 }
 
 
@@ -3551,26 +2949,22 @@ async function logout() {
 
   try {
 
-    if (currentCallId) {
-      await endCurrentCall(true);
-    }
-
+    cleanupCall();
 
     cleanupSubscriptions();
 
+    if (currentUser) {
 
-    if (
-      currentUser &&
-      diaryId
-    ) {
+      const presenceRef =
+        ref(
+          rtdb,
+          `diaries/${diaryId}/presence/${currentUser.uid}`
+        );
 
       try {
 
         await update(
-          ref(
-            rtdb,
-            `diaries/${diaryId}/presence/${currentUser.uid}`
-          ),
+          presenceRef,
           {
             online: false,
             lastSeen:
@@ -3579,79 +2973,9 @@ async function logout() {
         );
 
       } catch {}
-
     }
-
 
     await signOut(auth);
-
-
-    currentUser = null;
-
-    diaryId = "";
-
-    currentName = "";
-
-    members = [];
-
-    otherMember = null;
-
-
-    localStorage.removeItem(
-      "sharedDiaryCode"
-    );
-
-    localStorage.removeItem(
-      "sharedDiaryName"
-    );
-
-
-    const appScreen =
-      $("appScreen");
-
-    const loginScreen =
-      $("loginScreen");
-
-
-    if (appScreen) {
-
-      appScreen.classList.add(
-        "hidden"
-      );
-
-    }
-
-
-    if (loginScreen) {
-
-      loginScreen.classList.remove(
-        "hidden"
-      );
-
-    }
-
-
-    const codeInput =
-      $("diaryCode");
-
-    const nameInput =
-      $("userName");
-
-
-    if (codeInput) {
-      codeInput.value = "";
-    }
-
-    if (nameInput) {
-      nameInput.value = "";
-    }
-
-
-    showToast(
-      "از دفترچه خارج شدید",
-      "✓"
-    );
-
 
   } catch (error) {
 
@@ -3660,223 +2984,309 @@ async function logout() {
       error
     );
 
+  } finally {
+
+    currentUser =
+      null;
+
+    currentName =
+      "";
+
+    localStorage.removeItem(
+      "sharedDiaryName"
+    );
+
+    const appScreen =
+      $("appScreen");
+
+    const loginScreen =
+      $("loginScreen");
+
+    if (appScreen) {
+
+      appScreen.classList.add(
+        "hidden"
+      );
+    }
+
+    if (loginScreen) {
+
+      loginScreen.classList.remove(
+        "hidden"
+      );
+    }
   }
 }
 
 
 /* =========================================================
-   AUTH STATE
+   CLEANUP SUBSCRIPTIONS
 ========================================================= */
 
-onAuthStateChanged(
-  auth,
-  user => {
+function cleanupSubscriptions() {
 
-    currentUser =
-      user || null;
+  const subscriptions = [
+    "unsubscribeMembers",
+    "unsubscribeMessages",
+    "unsubscribePresence",
+    "unsubscribeBattery",
+    "unsubscribeIncomingCalls",
+    "unsubscribeCurrentCall",
+    "unsubscribeCandidates"
+  ];
 
+  subscriptions.forEach(
+    key => {
+
+      if (
+        typeof window[key] ===
+        "function"
+      ) {
+        try {
+          window[key]();
+        } catch {}
+      }
+    }
+  );
+
+  if (unsubscribeMembers) {
+
+    unsubscribeMembers();
+
+    unsubscribeMembers =
+      null;
   }
-);
+
+  if (unsubscribeMessages) {
+
+    unsubscribeMessages();
+
+    unsubscribeMessages =
+      null;
+  }
+
+  if (unsubscribePresence) {
+
+    unsubscribePresence();
+
+    unsubscribePresence =
+      null;
+  }
+
+  if (unsubscribeBattery) {
+
+    unsubscribeBattery();
+
+    unsubscribeBattery =
+      null;
+  }
+
+  if (unsubscribeIncomingCalls) {
+
+    unsubscribeIncomingCalls();
+
+    unsubscribeIncomingCalls =
+      null;
+  }
+
+  if (unsubscribeCurrentCall) {
+
+    unsubscribeCurrentCall();
+
+    unsubscribeCurrentCall =
+      null;
+  }
+
+  if (unsubscribeCandidates) {
+
+    unsubscribeCandidates();
+
+    unsubscribeCandidates =
+      null;
+  }
+}
 
 
 /* =========================================================
-   AUTO LOGIN FROM STORAGE
+   RESTORE SESSION
 ========================================================= */
 
 async function restoreSession() {
 
-  const savedCode =
-    localStorage.getItem(
-      "sharedDiaryCode"
-    );
+  /*
+    کد همیشه ثابت است.
+  */
 
-  const savedName =
-    localStorage.getItem(
-      "sharedDiaryName"
-    );
+  diaryId =
+    FIXED_DIARY_CODE;
 
+  const codeInput =
+    $("diaryCode");
 
-  if (
-    !savedCode ||
-    !savedName
-  ) {
-    return;
+  if (codeInput) {
+
+    codeInput.value =
+      FIXED_DIARY_CODE;
+
+    codeInput.readOnly =
+      true;
   }
 
 
-  try {
+  onAuthStateChanged(
+    auth,
+    async user => {
 
-    if (!currentUser) {
+      if (!user) {
 
-      await signInAnonymously(
-        auth
-      );
+        const savedName =
+          localStorage.getItem(
+            "sharedDiaryName"
+          );
 
-    }
+        if (savedName) {
 
+          const nameInput =
+            $("userName");
 
-    currentUser =
-      auth.currentUser;
+          if (nameInput) {
 
-
-    if (!currentUser) {
-      return;
-    }
-
-
-    diaryId =
-      savedCode;
-
-    currentName =
-      savedName;
-
-
-    const memberRef =
-      doc(
-        db,
-        "diaries",
-        diaryId,
-        "members",
-        currentUser.uid
-      );
-
-
-    const snapshot =
-      await getDoc(
-        memberRef
-      );
-
-
-    if (!snapshot.exists()) {
-
-      await setDoc(
-        memberRef,
-        {
-          uid: currentUser.uid,
-          name: currentName,
-          createdAt:
-            serverTimestamp(),
-          lastSeen:
-            serverTimestamp()
+            nameInput.value =
+              savedName;
+          }
         }
-      );
 
-    } else {
+        return;
+      }
 
-      await updateDoc(
-        memberRef,
-        {
-          name: currentName,
-          lastSeen:
-            serverTimestamp()
+      currentUser =
+        user;
+
+      const savedName =
+        localStorage.getItem(
+          "sharedDiaryName"
+        );
+
+      /*
+        اگر کاربر قبلاً وارد شده باشد،
+        نام ذخیره‌شده را برمی‌داریم.
+      */
+
+      if (savedName) {
+
+        currentName =
+          savedName;
+
+        try {
+
+          const memberRef =
+            doc(
+              db,
+              "diaries",
+              diaryId,
+              "members",
+              currentUser.uid
+            );
+
+          const snapshot =
+            await getDoc(memberRef);
+
+          if (snapshot.exists()) {
+
+            currentName =
+              snapshot.data().name ||
+              savedName;
+
+          }
+
+          openApp();
+
+          await setupEverything();
+
+        } catch (error) {
+
+          console.error(
+            "RESTORE ERROR:",
+            error
+          );
+
+          /*
+            اگر Session خراب شده،
+            صفحه Login را نگه می‌داریم.
+          */
+
+          const appScreen =
+            $("appScreen");
+
+          const loginScreen =
+            $("loginScreen");
+
+          if (appScreen) {
+            appScreen.classList.add(
+              "hidden"
+            );
+          }
+
+          if (loginScreen) {
+            loginScreen.classList.remove(
+              "hidden"
+            );
+          }
         }
-      );
-
+      }
     }
-
-
-    openApp();
-
-    await setupEverything();
-
-
-  } catch (error) {
-
-    console.error(
-      "RESTORE SESSION ERROR:",
-      error
-    );
-
-
-    localStorage.removeItem(
-      "sharedDiaryCode"
-    );
-
-    localStorage.removeItem(
-      "sharedDiaryName"
-    );
-
-  }
+  );
 }
 
 
 /* =========================================================
-   EVENT LISTENERS
+   DOM READY
 ========================================================= */
 
 document.addEventListener(
   "DOMContentLoaded",
   () => {
 
+    /*
+      کد دفترچه را خودکار قرار بده.
+    */
+
+    const codeInput =
+      $("diaryCode");
+
+    if (codeInput) {
+
+      codeInput.value =
+        FIXED_DIARY_CODE;
+
+      codeInput.readOnly =
+        true;
+    }
+
+
     const loginBtn =
       $("loginBtn");
 
-
     if (loginBtn) {
 
-      loginBtn.addEventListener(
-        "click",
-        login
-      );
-
+      loginBtn.onclick =
+        login;
     }
 
 
     const logoutBtn =
       $("logoutBtn");
 
-
     if (logoutBtn) {
 
-      logoutBtn.addEventListener(
-        "click",
-        logout
-      );
-
+      logoutBtn.onclick =
+        logout;
     }
-
-
-    const codeInput =
-      $("diaryCode");
-
-    const nameInput =
-      $("userName");
-
-
-    [codeInput, nameInput]
-      .forEach(input => {
-
-        if (!input) {
-          return;
-        }
-
-
-        input.addEventListener(
-          "keydown",
-          event => {
-
-            if (
-              event.key ===
-              "Enter"
-            ) {
-
-              login();
-
-            }
-
-          }
-        );
-
-      });
 
 
     setupCallButtons();
 
     setupTheme();
-
-    setupNavigation();
-
-    setupChat();
 
     restoreSession();
 
